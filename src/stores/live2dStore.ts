@@ -17,14 +17,18 @@ export const useLive2dStore = defineStore('live2d', () => {
   const HQassets = ref(true)
   const canAssetTalk = ref(false)
   const canYap = ref(true)
+  const yapEnabled = ref(true)
   const isYapping = ref(false)
   const attachments = ref<AttachmentInterface[]>([])
+  const animations = ref<string[]>([])
+  const current_animation = ref<string>('idle')
   const updateAttachments = ref(0)
   const applyAttachments = ref(0)
   const selectionAttachments = ref<'select' | 'unselect'>('select')
   const selectAttachments = ref(0)
   const canLoadSpine = ref(true)
   const finishedLoading = ref(0)
+  const isVisible = ref(true)
   const layerPreviewMode = ref(0)
   const layerEditorPreviewObj = ref({
     index: 0,
@@ -311,8 +315,11 @@ export const useLive2dStore = defineStore('live2d', () => {
     HQassets,
     canAssetTalk,
     canYap,
+    yapEnabled,
     isYapping,
     attachments,
+    animations,
+    current_animation,
     updateAttachments,
     applyAttachments,
     triggerUpdateAttachments,
@@ -323,6 +330,7 @@ export const useLive2dStore = defineStore('live2d', () => {
     canLoadSpine,
     finishedLoading,
     triggerFinishedLoading,
+    isVisible,
     layerEditorPreviewObj,
     layerPreviewMode,
     triggerLayerPreviewMode

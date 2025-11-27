@@ -1,20 +1,14 @@
 <template>
-  <!-- if increase/decrease margin top of scroll bar, need to update the calc of max height -->
   <n-scrollbar
     class="scrollBarMargin"
     :class="checkMobile() ? 'mobileScroll' : ''"
   >
-    <Header v-show="!isChibiMobile()"/>
     <RouterView />
-    <Footer v-show="!isL2d() && !isChibiMobile()" />
-    <!-- <div v-if="market.globalParams.isMobile" class="fakeFooter"></div> -->
   </n-scrollbar>
 </template>
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
-import Header from '@/components/common/Header/HeaderSelector.vue'
-import Footer from '@/components/common/Footer/Footer.vue'
 import { watch } from 'vue'
 import { useMarket } from '@/stores/market'
 import { useLoadingBar } from 'naive-ui'
@@ -25,12 +19,6 @@ const loadingBar = useLoadingBar()
 
 const checkMobile = () => {
   return market.globalParams.isMobile
-}
-const isL2d = () => {
-  return market.route.name === 'visualiser'
-}
-const isChibiMobile = () => {
-  return checkMobile() && market.route.name === 'chibi'
 }
 
 market.message.setMessage(useMessage())
