@@ -1,4 +1,4 @@
-# Story Generator and Roleplaying Generator for Nikke-DB
+# Story Generator and Roleplaying Generator for Nikke-DB (Standalone Version)
 
 This is a fork of Nikke-DB that includes a Story and Roleplay generator using the pre-existing Live2D Visualizer feature. 
 
@@ -33,6 +33,19 @@ This is a fork of Nikke-DB that includes a Story and Roleplay generator using th
 You can change settings using the Gear button in the upper right corner.
 
 # FAQ
+<details>
+<summary><strong>How do I run this locally?</strong></summary>
+
+Just like the original codebase, clone the repository and then run ```npm run dev```. Open your browser, and navigate to the link your terminal gives you. 
+
+</details>
+
+<details>
+<summary><strong>Where is the rest of the Nikke-DB website?</strong></summary>
+
+The main branch of this fork is a standalone version that includes the Story/Roleplaying generator exclusively. I will create another branch (and possibly create a PR so that it can be merged to the actual, original Nikke-DB website) that includes everything soon.
+
+</details>
 
 <details>
 <summary><strong>Where do I put my API Key?</strong></summary>
