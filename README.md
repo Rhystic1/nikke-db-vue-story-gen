@@ -43,7 +43,8 @@ Just like the original codebase, clone the repository and then run ```npm instal
 <details>
 <summary><strong>Where is the rest of the Nikke-DB website?</strong></summary>
 
-The main branch of this fork is a standalone version that includes the Story/Roleplaying generator exclusively. I will create another branch (and possibly create a PR so that it can be merged to the actual, original Nikke-DB website) that includes everything soon.
+The main branch of this fork is a standalone version that includes the Story/Roleplaying generator exclusively. ~~I will create another branch (and possibly create a PR so that it can be merged to the actual, original Nikke-DB website) that includes everything soon.~~
+**UPDATE:** A PR has been raised to integrate this fork into the main website. In the meantime, if you prefer to run the entire website yourself, checkout the branch `integrated` of this fork.
 
 </details>
 
@@ -78,8 +79,20 @@ Time-permitting, yes. Stay tuned.
 </details>
 
 <details>
+<summary><strong>Occasionally/During the first prompt I do not see any character on the screen. Is this normal?</strong></summary>
+Yes and no, it depends: the character selection logic has a couple of rules that determine whether to show any character at that particular moment of the story or not. Generally speaking, no character will appear in the following circumstances:
+  
+- It is the very first turn of the conversation (e.g. initial setting)
+- The Commander is speaking
+- Actions are occurring in the story
+
+However, sometimes the logic still fails to properly assign a character to show on screen despite it being fairly evident that the actions in the story are involving a specific character, even if they are not speaking. Fortunately, this doesn't happen often, however I am working to improve this. 
+
+</details>
+
+<details>
   <summary><strong>How do I donate?</strong></summary>
-  Thank you very much for your generosity? See **Support the Project** below!
+  Thank you very much for your generosity! See **Support the Project** below!
 </details>
 
 # Support the Project
