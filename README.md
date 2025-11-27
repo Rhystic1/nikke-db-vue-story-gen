@@ -79,6 +79,15 @@ Time-permitting, yes. Stay tuned.
 </details>
 
 <details>
+<summary><strong>How do I save or load a story?</strong></summary>
+At the moment, you can't. I will work on implementing a Save/Restore feature once I can. As a temporary workaround to save your story (not load it later, though), you can either:
+  
+  - Copy the most recent "Sending to Gemini" or "Sending to Perplexity" object from your Browser Console, if you are running the fork locally
+  - Drag the text from the chat box, copy it and paste it to a text file
+
+</details>
+
+<details>
 <summary><strong>Occasionally/During the first prompt I do not see any character on the screen. Is this normal?</strong></summary>
 Yes and no, it depends: the character selection logic has a couple of rules that determine whether to show any character at that particular moment of the story or not. Generally speaking, no character will appear in the following circumstances:
   
@@ -88,6 +97,36 @@ Yes and no, it depends: the character selection logic has a couple of rules that
 
 However, sometimes the logic still fails to properly assign a character to show on screen despite it being fairly evident that the actions in the story are involving a specific character, even if they are not speaking. Fortunately, this doesn't happen often, however I am working to improve this. 
 
+</details>
+
+<details>
+<summary><strong>Some characters seem to behave weirdly/not in character or they don't speak like they should. Why? Is there something I can try?</strong></summary>
+Unfortunately, Large Language Models (LLMs) are, by nature, quite random. This means that occasionally, despite specific and critical instructions, they may still output incoherent or incorrect content. This is especially true with smaller/cheaper models. In addition, those that are currently available in this branch/fork are _general_ models that are not specifically tuned for roleplaying or story telling, although they can still produce excellent results.
+
+While I will keep trying to improve the quality of the output as much as I can with the tools and API I have at disposal, there are a couple things that you can do:
+
+1) Avoid very long stories, as the model might lose context/coherence sooner
+2) Retry by instructing the model (using "[]") to retry the last turn
+3) Start from scratch by refreshing the page. You'd be surprised how wildly better the result can be by simply starting again!
+
+</details>
+
+<details>
+<summary><strong>At times, I see duplicated character names when they speak. Why?</strong></summary>
+This is a known bug I will attempt to fix soon. Sorry about that!
+</details>
+
+<details>
+<summary><strong>What's the difference between "Send" and "Continue"?</strong></summary>
+  
+- **Send**: Will use your words/dialogue/instructions to progress the story.
+- **Continue**: Does not provide any specific instruction to the model, and the AI will move the story forward on its own until your next turn.
+
+</details>
+
+<details>
+<summary><strong>Why do I see "Error 503" in the chatbox at times?</strong></summary>
+This is entirely on Google's end, and there is nothing I can do about it. During peak times of AI usage, you may sometimes see that message. If that happens, click "Retry". If you see the message again, try waiting a couple of minutes before pressing the button again.
 </details>
 
 <details>
