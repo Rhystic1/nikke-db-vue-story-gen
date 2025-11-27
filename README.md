@@ -36,7 +36,7 @@ You can change settings using the Gear button in the upper right corner.
 <details>
 <summary><strong>How do I run this locally?</strong></summary>
 
-Just like the original codebase, clone the repository and then run ```npm run dev```. Open your browser, and navigate to the link your terminal gives you. 
+Just like the original codebase, clone the repository and then run ```npm install``` followed by ```npm run dev```. Open your browser, and navigate to the link your terminal gives you. 
 
 </details>
 
@@ -76,6 +76,14 @@ When you input your API key, it will be stored locally on your browser. When you
 Time-permitting, yes. Stay tuned.
 
 </details>
+
+<details>
+  <summary><strong>How do I donate?</strong></summary>
+  Thank you very much for your generosity? See **Support the Project** below!
+</details>
+
+# Support the Project
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/V7V51P8O3V)
 
 # Nikke-DB-Vue (Original Readme)
 
