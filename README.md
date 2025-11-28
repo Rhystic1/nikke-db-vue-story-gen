@@ -2,7 +2,7 @@
 
 This is a fork of Nikke-DB that includes a Story and Roleplay generator using the pre-existing Live2D Visualizer feature. 
 
-**NOTE: YOU MUST provide your own API key (currently Gemini or Perplexity) to use this feature! I am also NOT RESPONSIBLE for any cost that you might incur while using your API key for this feature!**
+**NOTE: YOU MUST provide your own API key (currently Gemini, Perplexity or OpenRouter) to use this feature! I am also NOT RESPONSIBLE for any cost that you might incur while using your API key for this feature!**
 
 ## Features
 - Uses the existing Live2D Visualizer feature to display characters and animations that intelligently adapts to the dialogue and actions of your story!
@@ -14,7 +14,7 @@ This is a fork of Nikke-DB that includes a Story and Roleplay generator using th
 
 ## Current Limitations
 - A personal API key is required to use this feature.
-- Only the Gemini and Perplexity APIs are supported at the moment, and only specific models.
+- Only the Gemini, Perplexity and OpenRouter APIs are supported at the moment, and only specific models.
 - Backgrounds are not implemented (yet).
 - Only one character can be displayed at a time, but it dynamically changes based on the context.
 - The quality and coherence of the story depends on the selected AI model.
@@ -29,6 +29,8 @@ This is a fork of Nikke-DB that includes a Story and Roleplay generator using th
 | Perplexity    | Sonar Pro | Medium| Medium  | Much better than Sonar, but more expensive  |
 | Gemini | Gemini 2.5 Flash  | Fast | Medium/High  | Better than Sonar or Sonar Pro and fairly lore-accurate, cheaper than Gemini 2.5 Pro but prone to the occasional mess-up. _Recommended_       |
 | Gemini | Gemini 2.5 Pro    | Low  | Very High  | Exceptional storytelling and roleplaying capabilities, but slower and more expensive   |
+| OpenRouter | xAI: Grok 4.1 Fast (free)    | Low (first prompt), High  | Very High  | Great creative writing skills and character coherence, plus it's (temporarily) free! _Recommended_   |
+| OpenRouter | _Too many to list_    | Low (first prompt), Variable  | Variable  | Too many paid models to list here. Careful not to choose models that are too expensive. See OpenRouter's model pricing page for more information   |
 
 You can change settings using the Gear button in the upper right corner.
 
@@ -73,6 +75,14 @@ When you input your API key, it will be stored locally on your browser. When you
 </details>
 
 <details>
+<summary><strong>I want to use a paid OpenRouter key, and I bought some credits. Which model do you suggest?</strong></summary>
+This depends on your preferences for speed, quality and cost. As there are hundreds of models to choose from, it is difficult to give a definitive answer, however I do not recommend using expensive models (e.g. Claude Sonnet 4.5, Claude Opus 4.5, Gemini 3 Pro, etc.) for a simple story/roleplay session. I would also avoid models that are designed specifically for other tasks such as coding (e.g. GPT-5.1 Codex) as their quality will be poor in this instance. 
+
+Look for models that are tuned for storytelling. If you really don't know what to choose and want a name, a "safe" option would be Grok 4.1 Fast (free). Note that this model may not remain free forever, depending on xAI and OpenRouter.
+
+</details>
+
+<details>
 <summary><strong>Are you going to fix bugs and add new features?</strong></summary>
 Time-permitting, yes. Stay tuned.
 
@@ -96,6 +106,32 @@ Yes and no, it depends: the character selection logic has a couple of rules that
 - Actions are occurring in the story
 
 However, sometimes the logic still fails to properly assign a character to show on screen despite it being fairly evident that the actions in the story are involving a specific character, even if they are not speaking. Fortunately, this doesn't happen often, however I am working to improve this. 
+
+</details>
+
+<details>
+<summary><strong>When using my OpenRouter key with a free account/no credits and selecting a free model, I immediately get an error message on submitting the first prompt. Why?</strong></summary>
+This happens with new OpenRouter accounts that did not purchase any credits. From my understanding, this is meant to be an anti-spam protection to avoid people constantly creating new accounts and overwhelming their servers with unpaid requests. There is nothing I can do about this, however there is a (paid) solution:
+
+  - Go to your account page in OpenRouter and purchase **at least $10 of credits.**
+
+This should automatically fix the issue. Note that you do not have to spend those credits, and even if and when you do, you will not need to purchase credits again to fix the original issue.
+Furthermore, while I have taken some protective steps to avoid the user spending credits if they are choosing the free option, if you want to be even safer you can go to your API Keys page in your OpenRouter account page and set a limit in $ for your API key (like $0 or $1).
+
+The above steps solved the problem for me during testing. If you are still experiencing the same issue however, please see below...
+</details>
+
+<details>
+<summary><strong>Could I still be charged if I use a free model from OpenRouter?</strong></summary>
+Yes, but only in certain situations.
+
+In order to ensure a better quality experience, the model will search the Goddess of Victory: NIKKE Wikia to gather certain details regarding the characters that are part of the scene, such as how they address the Commander, their personality, etc.
+
+The model should execute a web search only the first time a character appears in a scene, and will only obtain limited information, however certain providers may charge a fee after a certain amount of web searches, even if you are using a free model.
+
+Once again, I would strongly recommend checking your provider's pricing page for more information, and remember that if you want to avoid any unexpected charge you can always set a limit on your API key! However, please note that if you do trigger a charge from your provider and that charge would put you above the limit for your key, you will likely encounter an error and be unable to proceed.
+
+As always, you are the sole responsible for any cost.
 
 </details>
 
@@ -127,6 +163,11 @@ This is a known bug I will attempt to fix soon. Sorry about that!
 <details>
 <summary><strong>Why do I see "Error 503" in the chatbox at times?</strong></summary>
 This is entirely on Google's end, and there is nothing I can do about it. During peak times of AI usage, you may sometimes see that message. If that happens, click "Retry". If you see the message again, try waiting a couple of minutes before pressing the button again.
+</details>
+
+<details>
+<summary><strong>Why does it take longer to get a response on the first prompt?</strong></summary>
+This is most noticeable when using OpenRouter, and it is possibly due to the web search that occurs at the start. From testing, other providers take much less to load a response, and remember that the speed also depends on the model that you have selected. Regardless, you should get faster speeds after the first prompt.
 </details>
 
 <details>
