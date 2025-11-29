@@ -20,7 +20,6 @@ This is a fork of Nikke-DB that includes a Story and Roleplay generator using th
 - The quality and coherence of the story depends on the selected AI model.
 - Despite instructions and fallbacks, the model may still occasionally call the Commander using the wrong honorific, or it may not playback the most relevant animation.
 - The model may sometimes fail to output JSON, causing a failure. However, a failure may be recovered by attempting the same line again.
-- No ability to save or load a story/roleplaying session (yet).
 
 ## Currently Available Models
 | API        | Model Name          | Speed | Quality | Comment                |
@@ -90,10 +89,7 @@ Time-permitting, yes. Stay tuned.
 
 <details>
 <summary><strong>How do I save or load a story?</strong></summary>
-At the moment, you can't. I will work on implementing a Save/Restore feature once I can. As a temporary workaround to save your story (not load it later, though), you can either:
-  
-  - Copy the most recent "Sending to Gemini" or "Sending to Perplexity" object from your Browser Console, if you are running the fork locally
-  - Drag the text from the chat box, copy it and paste it to a text file
+Press the Save button to save, and Load to restore a session. Easy!
 
 </details>
 
@@ -105,7 +101,7 @@ Yes and no, it depends: the character selection logic has a couple of rules that
 - The Commander is speaking
 - Actions are occurring in the story
 
-However, sometimes the logic still fails to properly assign a character to show on screen despite it being fairly evident that the actions in the story are involving a specific character, even if they are not speaking. Fortunately, this doesn't happen often, however I am working to improve this. 
+However, sometimes the logic still fails to properly assign a character to show on screen despite it being fairly evident that the actions in the story are involving a specific character, even if they are not speaking. Fortunately, this doesn't happen often, however recent commits should now prevent this from happening in most cases.
 
 </details>
 
@@ -149,7 +145,7 @@ While I will keep trying to improve the quality of the output as much as I can w
 
 <details>
 <summary><strong>At times, I see duplicated character names when they speak. Why?</strong></summary>
-This is a known bug I will attempt to fix soon. Sorry about that!
+This issue should now be fixed. Please raise an Issue if you still see it.
 </details>
 
 <details>
@@ -172,10 +168,10 @@ This is most noticeable when using OpenRouter, and it is possibly due to the web
 
 <details>
   <summary><strong>How do I donate?</strong></summary>
-  Thank you very much for your generosity! See **Support the Project** below!
+  Thank you very much for your generosity! See **Donate** below!
 </details>
 
-# Support the Project
+# Donate
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/V7V51P8O3V)
 
 # Nikke-DB-Vue (Original Readme)
