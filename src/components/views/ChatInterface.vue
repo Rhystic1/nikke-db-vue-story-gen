@@ -352,6 +352,7 @@ const fetchOpenRouterModels = async () => {
     openRouterModels.value = models.map((m: any) => {
       const isFree = m.pricing.prompt === '0' && m.pricing.completion === '0'
 
+
       return {
         label: (isFree ? '[FREE] ' : '') + m.name,
         value: m.id,
@@ -408,6 +409,7 @@ const initializeSettings = async () => {
     
     // Validate and set model
     let validModels: string[] = []
+    
 
     if (savedProvider === 'perplexity') {
       validModels = ['sonar', 'sonar-pro']
@@ -1063,15 +1065,7 @@ const sanitizeActions = (actions: any[]) => {
       // Filter out standalone speaker labels (e.g. "**Anis:** ")
       // These are often artifacts from splitting "Name: Quote"
       if (isSpeakerLabel(part) && !quoted) {
-        // Try to extract the name and update the effective character ID for subsequent parts
-        const match = part.match(/^\s*(?:\*\*)?([^*]+?)(?:\*\*)?\s*:\s*(?:\*\*)?\s*$/)
-        if (match) {
-            const name = match[1].trim()
-            const char = l2d.find(c => c.name.toLowerCase() === name.toLowerCase())
-            if (char) {
-                effectiveCharacterId = char.id
-            }
-        }
+
         continue
       }
 
