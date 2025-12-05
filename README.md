@@ -30,6 +30,7 @@ This is a fork of Nikke-DB that includes a Story and Roleplay generator using th
 | Gemini | Gemini 2.5 Pro    | Medium  | Very High  | Exceptional storytelling and roleplaying capabilities, but slower and more expensive   |
 | OpenRouter | xAI: Grok 4.1 Fast (free)    | Very Slow  | Very High | Great creative writing skills and character coherence, plus it's (temporarily) free! Very slow due to it being free.   |
 | OpenRouter | Anthropic: Claude 4.5 Haiku    | Fast | High | Very good coherence and writing, slightly less "creative" than Grok 4.1 but excellent nonetheless. Relatively cheap. _Recommended_   |
+| OpenRouter | DeepSeek: DeepSeek V3.2 | Fast | Medium/High | Very cheap and good quality for its cost. Has a tendency to disregard JSON output, but overall produces good content. |
 
 
 You can change settings using the Gear button in the upper right corner.
@@ -170,6 +171,13 @@ This is most noticeable when using OpenRouter, and it is possibly due to the web
   <summary><strong>How do I donate?</strong></summary>
   Thank you very much for your generosity! See **Donate** below!
 </details>
+
+# Tips & Tricks
+- **CHOOSE A GOOD MODEL**. This is the number one thing you can do to improve the quality of the storywriting and to avoid errors and other issues. Some models are simply not good for this task. Suggested models include Gemini 2.5 Flash/Pro, Claude 4.5 Haiku, DeepSeek V3.2, Grok 4.1 Fast...
+- **Be patient.** Sometimes, and especially during the first prompt, the model may take a long time to answer, though you should get faster speeds after that. Free models, in particular, are usually slow due to user traffic. It will also take longer during turns in which new characters are introduced in a scene, as the model needs to fetch the appropriate information about them.
+- If you are getting garbled or weird output, remember that you can retry by clicking on the delete button for the last message. Do that until the last "good" message, then try again with your prompt.
+- Likewise, if you liked _part_ of the response, you can always remove the part you didn't like and then re-prompt for the rest.
+- Despite using good models and the built-in system prompts, sometimes the LLM may get confused and use honorifics when speaking to other characters instead of the Commander, or it could use the wrong honorific altogether. If that's the case, in your next message, add a stage direction to the AI like this: `[CRITICAL INSTRUCTION: You have used the honorifics incorrectly in your last turn. Remember to use the honorifics appropriately: Bay calls the Commander and ONLY the Commander "Coach".]`. In general, this technique can help steer the model in the right direction when something is not right.
 
 # Donate
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/V7V51P8O3V)
