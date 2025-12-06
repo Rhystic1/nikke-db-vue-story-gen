@@ -19,6 +19,13 @@ import { globalParams, messagesEnum } from '@/utils/enum/globalParams'
 import type { AttachmentInterface, AttachmentItemColorInterface } from '@/utils/interfaces/live2d'
 import { animationMappings } from '@/utils/animationMappings'
 
+// Helper for debug logging
+const logDebug = (...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(...args)
+  }
+}
+
 let canvas: HTMLCanvasElement | null = null
 let spineCanvas: any = null
 let currentLoadId = 0 // Track active load requests
@@ -60,11 +67,11 @@ const resetAttachmentColors = (player: any) => {
 }
 
 const resolveAnimation = (requested: string, available: string[]): string | null => {
-  console.log(`[Loader] Resolving animation: '${requested}' against available:`, available)
-  
+  logDebug(`[Loader] Resolving animation: '${requested}' against available:`, available)
+
   if (!requested || requested === 'none') return null
   if (available.includes(requested)) {
-    console.log(`[Loader] Found exact match: ${requested}`)
+    logDebug(`[Loader] Found exact match: ${requested}`)
     return requested
   }
 
@@ -91,7 +98,7 @@ const resolveAnimation = (requested: string, available: string[]): string | null
 
   for (const { target, condition, triggers } of specialMappings) {
     if (condition(available) && triggers.some((t) => lowerRequested.includes(t))) {
-      console.log(`[Loader] Mapped '${requested}' to '${target}'`)
+      logDebug(`[Loader] Mapped '${requested}' to '${target}'`)
       return target
     }
   }
@@ -99,7 +106,7 @@ const resolveAnimation = (requested: string, available: string[]): string | null
   // Direct fuzzy match
   const directMatch = available.find((a) => a.toLowerCase().includes(lowerRequested))
   if (directMatch) {
-    console.log(`[Loader] Found direct fuzzy match: ${directMatch}`)
+    logDebug(`[Loader] Found direct fuzzy match: ${directMatch}`)
     return directMatch
   }
 
@@ -112,7 +119,7 @@ const resolveAnimation = (requested: string, available: string[]): string | null
       // exact match of targetAnim (fuzzy)...
       let match = available.find((a) => a.toLowerCase().includes(targetAnim))
       if (match) {
-        console.log(`[Loader] Found semantic match for ${targetAnim} (base): ${match}`)
+        logDebug(`[Loader] Found semantic match for ${targetAnim} (base): ${match}`)
         return match
       }
 
@@ -120,7 +127,7 @@ const resolveAnimation = (requested: string, available: string[]): string | null
       for (const trigger of triggers) {
         match = available.find((a) => a.toLowerCase().includes(trigger))
         if (match) {
-          console.log(`[Loader] Found semantic match for ${targetAnim} (trigger: ${trigger}): ${match}`)
+          logDebug(`[Loader] Found semantic match for ${targetAnim} (trigger: ${trigger}): ${match}`)
           return match
         }
       }
@@ -149,7 +156,7 @@ watch(() => market.live2d.current_animation, (newAnim) => {
 
 const spineLoader = () => {
   if (!market.live2d.current_id) {
-    console.log('[Loader] No current_id set, skipping load.')
+    logDebug('[Loader] No current_id set, skipping load.')
     return
   }
 
@@ -164,7 +171,7 @@ const spineLoader = () => {
   request.send()
   request.onloadend = () => {
     if (thisLoadId !== currentLoadId) {
-      console.log('[Loader] Ignoring stale load request')
+      logDebug('[Loader] Ignoring stale load request')
       return
     }
 
@@ -256,7 +263,7 @@ const spineLoader = () => {
           }
 
           if (resolvedAnim) {
-            console.log(`[Loader] Setting initial animation to: ${resolvedAnim} (Requested: ${currentAnim})`)
+            logDebug(`[Loader] Setting initial animation to: ${resolvedAnim} (Requested: ${currentAnim})`)
             market.live2d.current_animation = resolvedAnim
             
             // Force set animation with a slight delay to ensure player is ready
@@ -811,19 +818,19 @@ const setYappable = (bool: boolean) => {
 watch(() => market.live2d.isYapping, (value) => {
   if (!spineCanvas || !spineCanvas.animationState) return
 
-  console.log(`[Loader] isYapping changed to: ${value}`)
+  logDebug(`[Loader] isYapping changed to: ${value}`)
 
   // Only allow yapping if asset supports it AND user enabled it
   if (value && market.live2d.canYap && market.live2d.yapEnabled) {
     try {
-      console.log('[Loader] Setting yap animation')
+      logDebug('[Loader] Setting yap animation')
       spineCanvas.animationState.setAnimation(1, YAP_TRACK, true)
     } catch (e) {
       console.warn('Could not add yap track', e)
     }
   } else {
     try {
-      console.log('[Loader] Clearing yap animation')
+      logDebug('[Loader] Clearing yap animation')
       spineCanvas.animationState.setEmptyAnimation(1, 0)
     } catch (e) {
       console.warn('Could not clear yap track', e)
