@@ -46,114 +46,6 @@ const spineViewport = {
 const SPINE_DEFAULT_MIX = 0.25
 let spinePlayer: any = null
 
-const resetAttachmentColors = (player: any) => {
-  if (!player?.animationState?.data?.skeletonData?.defaultSkin?.attachments) return
-
-  player.animationState.data.skeletonData.defaultSkin.attachments.forEach((a: any[]) => {
-    if (a) {
-      const keys = Object.keys(a)
-      if (keys !== null && keys !== undefined && keys.length > 0) {
-        keys.forEach((k: string) => {
-          a[k as any].color = {
-            r: 1,
-            g: 1,
-            b: 1,
-            a: 1
-          }
-        })
-      }
-    }
-  })
-}
-
-const resolveAnimation = (requested: string, available: string[]): string | null => {
-  logDebug(`[Loader] Resolving animation: '${requested}' against available:`, available)
-
-  if (!requested || requested === 'none') return null
-  if (available.includes(requested)) {
-    logDebug(`[Loader] Found exact match: ${requested}`)
-    return requested
-  }
-
-  const lowerRequested = requested.toLowerCase()
-
-  // Special handling for multi-stage anger (e.g. Chime)
-  const specialMappings = [
-    {
-      target: 'angry',
-      condition: (avail: string[]) => avail.filter((a) => a.toLowerCase().includes('angry')).length > 1,
-      triggers: ['irritated', 'bothered', 'grumpy', 'frustrated', 'annoyed', 'displeased']
-    },
-    {
-      target: 'angry_02',
-      condition: (avail: string[]) => avail.includes('angry_02'),
-      triggers: ['very angry', 'furious', 'rage', 'shouting', 'yelling', 'livid', 'outraged', 'irate', 'mad']
-    },
-    {
-      target: 'angry_03',
-      condition: (avail: string[]) => avail.includes('angry_03'),
-      triggers: ['stern', 'frown', 'slightly angry', 'serious', 'disapproving', 'cold', 'glaring']
-    }
-  ]
-
-  for (const { target, condition, triggers } of specialMappings) {
-    if (condition(available) && triggers.some((t) => lowerRequested.includes(t))) {
-      logDebug(`[Loader] Mapped '${requested}' to '${target}'`)
-      return target
-    }
-  }
-  
-  // Direct fuzzy match
-  const directMatch = available.find((a) => a.toLowerCase().includes(lowerRequested))
-  if (directMatch) {
-    logDebug(`[Loader] Found direct fuzzy match: ${directMatch}`)
-    return directMatch
-  }
-
-  // Semantic mapping
-  for (const [targetAnim, triggers] of Object.entries(animationMappings)) {
-    // If requested animation contains the target name OR any of the triggers
-    if (lowerRequested.includes(targetAnim) || triggers.some((t) => lowerRequested.includes(t))) {
-      
-      // Try to find the target animation in available
-      // exact match of targetAnim (fuzzy)...
-      let match = available.find((a) => a.toLowerCase().includes(targetAnim))
-      if (match) {
-        logDebug(`[Loader] Found semantic match for ${targetAnim} (base): ${match}`)
-        return match
-      }
-
-      // ...or match any of the triggers in available
-      for (const trigger of triggers) {
-        match = available.find((a) => a.toLowerCase().includes(trigger))
-        if (match) {
-          logDebug(`[Loader] Found semantic match for ${targetAnim} (trigger: ${trigger}): ${match}`)
-          return match
-        }
-      }
-    }
-  }
-
-  console.warn(`[Loader] No match found for animation: ${requested}`)
-  return null
-}
-
-watch(() => market.live2d.current_animation, (newAnim) => {
-  if (spinePlayer && newAnim) {
-    try {
-      const resolvedAnim = resolveAnimation(newAnim, market.live2d.animations)
-      
-      if (resolvedAnim) {
-        spinePlayer.animationState.setAnimation(0, resolvedAnim, true)
-      } else {
-        console.warn(`Animation ${newAnim} not found and no fallback discovered.`)
-      }
-    } catch (e) {
-      console.error('Error setting animation:', e)
-    }
-  }
-})
-
 const spineLoader = () => {
   if (!market.live2d.current_id) {
     logDebug('[Loader] No current_id set, skipping load.')
@@ -217,6 +109,7 @@ const spineLoader = () => {
         atlasUrl: getPathing('atlas'),
         animation: getDefaultAnimation(),
         skin: market.live2d.getSkin(),
+        showControls: !market.live2d.hideUI && market.route.name !== 'story-gen',
         backgroundColor: '#00000000',
         alpha: true,
         premultipliedAlpha: true,
@@ -227,58 +120,9 @@ const spineLoader = () => {
         defaultMix: SPINE_DEFAULT_MIX,
         success: (player: any) => {
 
-          spineCanvas.animationState.data.skeletonData.defaultSkin.attachments.forEach((a: any[]) => {
-            if (a) {
-              const keys = Object.keys(a)
-              if (keys !== null && keys !== undefined && keys.length > 0) {
-                keys.forEach((k: string) => {
-                  a[k as any].color = {
-                    r: 1,
-                    g: 1,
-                    b: 1,
-                    a: 1
-                  }
-                })
-              }
-            }
-          })
-
           spinePlayer = player
           resetAttachmentColors(player)
           market.live2d.attachments = player.animationState.data.skeletonData.defaultSkin.attachments
-          market.live2d.animations = player.animationState.data.skeletonData.animations.map((a: any) => a.name)
-          
-          const currentAnim = market.live2d.current_animation
-          let resolvedAnim = resolveAnimation(currentAnim, market.live2d.animations)
-          
-          if (!resolvedAnim) {
-            // Try default animation from config
-            resolvedAnim = resolveAnimation(player.config.animation, market.live2d.animations)
-          }
-
-          if (!resolvedAnim && market.live2d.animations.length > 0) {
-            // Fallback to first available animation
-            resolvedAnim = market.live2d.animations[0]
-            console.warn(`No valid animation found. Falling back to first available: ${resolvedAnim}`)
-          }
-
-          if (resolvedAnim) {
-            logDebug(`[Loader] Setting initial animation to: ${resolvedAnim} (Requested: ${currentAnim})`)
-            market.live2d.current_animation = resolvedAnim
-            
-            // Force set animation with a slight delay to ensure player is ready
-            setTimeout(() => {
-              try {
-                player.animationState.setAnimation(0, resolvedAnim, true)
-                player.play()
-              } catch (e) {
-                console.error('[Loader] Failed to set animation in timeout', e)
-              }
-            }, 100)
-          } else {
-            console.error('[Loader] No animations available for this character.')
-          }
-
           market.live2d.triggerFinishedLoading()
           successfullyLoaded()
         },
@@ -326,17 +170,6 @@ const customSpineLoader = () => {
       spinePlayer = player
       resetAttachmentColors(player)
       market.live2d.attachments = player.animationState.data.skeletonData.defaultSkin.attachments
-      market.live2d.animations = player.animationState.data.skeletonData.animations.map((a: any) => a.name)
-      
-      const currentAnim = market.live2d.current_animation
-      const hasAnim = market.live2d.animations.includes(currentAnim)
-      
-      if (hasAnim) {
-        player.animationState.setAnimation(0, currentAnim, true)
-      } else {
-        market.live2d.current_animation = player.config.animation
-      }
-
       market.live2d.triggerFinishedLoading()
       successfullyLoaded()
       try {
@@ -502,7 +335,8 @@ watch(() => market.live2d.customLoad, () => {
 
 watch(() => market.live2d.hideUI, () => {
   const controls = document.querySelector('.spine-player-controls') as HTMLElement
-  if (market.live2d.hideUI === false) {
+  if (!controls) return
+  if (market.live2d.hideUI === false && market.route.name !== 'story-gen') {
     controls.style.visibility = 'visible'
   } else {
     controls.style.visibility = 'hidden'
@@ -725,8 +559,8 @@ document.addEventListener('mousemove', (e) => {
     const newX = e.clientX
     const newY = e.clientY
 
-    const stylel = parseInt(canvas.style.left.replaceAll('px', ''))
-    const stylet = parseInt(canvas.style.top.replaceAll('px', ''))
+    const stylel = parseInt(canvas.style.left.replace(/px/g, ''))
+    const stylet = parseInt(canvas.style.top.replace(/px/g, ''))
 
     if (newX !== oldX) {
       canvas.style.left = stylel + (newX - oldX) + 'px'

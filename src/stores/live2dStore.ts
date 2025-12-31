@@ -22,6 +22,7 @@ export const useLive2dStore = defineStore('live2d', () => {
   const attachments = ref<AttachmentInterface[]>([])
   const animations = ref<string[]>([])
   const current_animation = ref<string>('idle')
+  const isVisible = ref(true)
   const updateAttachments = ref(0)
   const applyAttachments = ref(0)
   const selectionAttachments = ref<'select' | 'unselect'>('select')
@@ -320,6 +321,7 @@ export const useLive2dStore = defineStore('live2d', () => {
     attachments,
     animations,
     current_animation,
+    isVisible,
     updateAttachments,
     applyAttachments,
     triggerUpdateAttachments,
