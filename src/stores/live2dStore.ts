@@ -29,7 +29,6 @@ export const useLive2dStore = defineStore('live2d', () => {
   const selectAttachments = ref(0)
   const canLoadSpine = ref(true)
   const finishedLoading = ref(0)
-  const isVisible = ref(true)
   const layerPreviewMode = ref(0)
   const layerEditorPreviewObj = ref({
     index: 0,
@@ -332,7 +331,6 @@ export const useLive2dStore = defineStore('live2d', () => {
     canLoadSpine,
     finishedLoading,
     triggerFinishedLoading,
-    isVisible,
     layerEditorPreviewObj,
     layerPreviewMode,
     triggerLayerPreviewMode

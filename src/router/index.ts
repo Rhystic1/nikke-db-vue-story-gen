@@ -8,11 +8,21 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
+      redirect: '/story-gen'
+    },
+    {
+      path: '/story-gen',
+      name: 'story-gen',
+      component: StoryGenerator
+    },
+    {
+      path: '/visualiser',
+      name: 'visualiser',
       component: L2D
     },
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/'
+      redirect: '/story-gen'
     }
   ]
 })

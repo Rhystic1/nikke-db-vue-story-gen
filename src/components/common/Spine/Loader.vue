@@ -100,7 +100,6 @@ const spineLoader = () => {
       }
 
       spineCanvas = new usedSpine.SpinePlayer('player-container', {
-        showControls: false,
         showLoading: false,
         skelUrl: market.live2d.current_id,
         rawDataURIs: {
@@ -123,8 +122,10 @@ const spineLoader = () => {
           spinePlayer = player
           resetAttachmentColors(player)
           market.live2d.attachments = player.animationState.data.skeletonData.defaultSkin.attachments
+          market.live2d.animations = player.animationState.data.skeletonData.animations.map((a: any) => a.name)
           market.live2d.triggerFinishedLoading()
           successfullyLoaded()
+          player.play()
         },
         error: () => {
           wrongfullyLoaded()
@@ -135,6 +136,23 @@ const spineLoader = () => {
   }
 }
 
+const resetAttachmentColors = (player: any) => {
+  player.animationState.data.skeletonData.defaultSkin.attachments.forEach((a: any[]) => {
+    if (a) {
+      const keys = Object.keys(a)
+      if (keys !== null && keys !== undefined && keys.length > 0) {
+        keys.forEach((k: string) => {
+          a[k as any].color = {
+            r: 1,
+            g: 1,
+            b: 1,
+            a: 1
+          }
+        })
+      }
+    }
+  })
+}
 
 const customSpineLoader = () => {
   let usedSpine: any
@@ -170,6 +188,7 @@ const customSpineLoader = () => {
       spinePlayer = player
       resetAttachmentColors(player)
       market.live2d.attachments = player.animationState.data.skeletonData.defaultSkin.attachments
+      market.live2d.animations = player.animationState.data.skeletonData.animations.map((a: any) => a.name)
       market.live2d.triggerFinishedLoading()
       successfullyLoaded()
       try {
@@ -340,6 +359,16 @@ watch(() => market.live2d.hideUI, () => {
     controls.style.visibility = 'visible'
   } else {
     controls.style.visibility = 'hidden'
+  }
+})
+
+watch(() => market.live2d.current_animation, (newAnimation) => {
+  if (spinePlayer && newAnimation) {
+    try {
+      spinePlayer.setAnimation(newAnimation, true)
+    } catch (e) {
+      console.warn('[Loader] Error setting animation:', newAnimation, e)
+    }
   }
 })
 
