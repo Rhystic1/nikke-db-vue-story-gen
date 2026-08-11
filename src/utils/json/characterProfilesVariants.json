@@ -121,6 +121,22 @@
     "id": "c073",
     "color": "#9395a7"
   },
+  "Cinderella: Crystal Wave": {
+    "appearance": "long silver hair, red eyes, fair skin, curvaceous",
+    "defaultSkin": "sheer white robe, light purple bikini top, wrap skirt, platform sandals",
+    "defaultWeapon": "",
+    "personality": "Cinderella: Crystal Wave is a proactive and romantically curious variant who takes initiative in pursuing her feelings for the protagonist. Unlike a passive character, she actively seeks out ways to close the distance with 'Prince,' even consulting a magazine article for guidance. She is polite and cordial, easily taming Penguin No. 1 through kindness rather than force. She becomes flustered and stammers when her plans are thwarted, showing a vulnerable side. She deeply appreciates quiet, tranquil moments and finds them both wondrous and dangerous. She is forward when it matters most, ultimately taking the final step to express her feelings on her own terms rather than relying on a guide.",
+    "speech_style": "Cinderella refers to the protagonist as 'Prince,' a consistent and affectionate naming convention. She speaks politely and with a degree of formality, but becomes flustered and stammers when frustrated (e.g., when Penguin No. 1 interrupts her plans). She is candid about her feelings once comfortable, openly expressing desires such as asking to hold hands longer or requesting kisses. She tends to phrase requests gently, often asking permission before acting.",
+    "backstory": "Cinderella: Crystal Wave is a swimsuit variant of Cinderella, with her swimsuit and private changing room prepared by Grave. During a trip to a deserted island, she discovers an Amor Tetra magazine article titled '7 Ways to Capture a Prince' among the protagonist's luggage. Realizing she had never held hands with 'Prince' before, she becomes anxious and decides to follow the guide's steps: holding hands, sharing something sweet (shaved ice), and getting closer in a private setting (a hidden lake). Throughout, Penguin No. 1 repeatedly intercepts her attempts, but she perseveres. At the final step, the guide tells her to stop reading and express her feelings directly. At a nighttime rendezvous by the lighthouse, wearing a black swimsuit, she confesses her actions to the protagonist—who reveals he already knew about the article—and ultimately kisses him, choosing to act on her own desires beyond the guide's instructions.",
+    "relationships": {
+      "Commander (Protagonist)": "Cinderella's romantic interest, whom she affectionately calls 'Prince.' She actively pursues closeness with him throughout the island trip, following a magazine guide's steps to capture his heart. The protagonist is receptive and patient, catching her when she trips, sharing shaved ice, and ultimately accepting her confession and kiss. He finds her forwardness endearing.",
+      "Grave": "Cinderella's guardian who prepared her swimsuit and private changing room. Grave is deeply devoted to Cinderella's wishes, even sourcing large quantities of shaved ice on a deserted island solely because Cinderella asked. She anticipates needs ahead of time and prioritizes Cinderella's desires above all else.",
+      "Penguin No. 1": "A drone that adores Cinderella and constantly interferes with her romantic attempts with the protagonist, intercepting hand-holds, stealing shaved ice, and inserting itself into private moments. Despite its obstructiveness, Cinderella remains patient and polite with it, eventually taming it by asking it to stand guard so she can be alone with 'Prince.'",
+      "Rapi: Red Hood": "The Counters leader who accompanies the group on the island trip. She identifies the Amor Tetra magazine and grants Cinderella permission to read it. She remarks on how the commander is always serious about leisure preparations."
+    },
+    "id": "c515",
+    "color": "#777aa3"
+  },
   "D: Killer Wife": {
     "appearance": "Long black hair with bangs, red eyes, pale skin, curvy figure, barcode tattoo on chest, butterfly tattoo on left arm",
     "defaultSkin": "Tight grey mini dress, off-shoulder brown knitted cardigan, black quilted handbag, fuzzy grey slippers",
@@ -263,6 +279,17 @@
     "id": "c353",
     "color": "#99cdef"
   },
+  "Laplace: Ultimate Hero": {
+    "appearance": "blonde twin tails, blue eyes, smiling",
+    "defaultSkin": "black bodysuit, red cape, blue-white armor, orange accents",
+    "defaultWeapon": "large glowing orange energy blades",
+    "personality": "",
+    "speech_style": "",
+    "backstory": "A true hero who has been reborn using the full might of Missilis Industry's technology. During the Gluttony chapter, Matis debuted with a new modification to assist the Commando Unit once more.",
+    "relationships": {},
+    "id": "c103",
+    "color": "#5c8af7"
+  },
   "Ludmilla: Winter Owner": {
     "appearance": "Long wavy blonde hair, red eyes, pale skin, voluptuous figure, gentle smile",
     "defaultSkin": "White off-shoulder kimono-style dress with high slit, white fur collar, sheer black thigh-high stockings with lace trim, white high heels, blue butterfly ornaments, flowing blue sash with constellation patterns, holding a large yellow paper lantern",
@@ -278,6 +305,22 @@
     },
     "id": "c194",
     "color": "#3c57cf"
+  },
+  "Marciana: Marine Study": {
+    "appearance": "long brown ponytail hair, brown eyes, tanned skin",
+    "defaultSkin": "red bikini with white cross, open blue lifeguard jacket, yellow crocs",
+    "defaultWeapon": "",
+    "personality": "Marciana: Marine Study is typically professionally distant and meticulous, especially when it comes to her duties as a teacher. However, this variant reveals a softer, more vulnerable side as she becomes easily embarrassed, particularly regarding her swimsuit and her budding romantic feelings. She is initially oblivious to her own jealousy, feeling a weighty unease when the protagonist compliments other Nikkes. Once she realizes she is in love, she becomes clingy and affectionate, a stark departure from her usual demeanor. She is also deeply caring and appreciative of her students, choosing to thank them rather than scold them for their meddling.",
+    "speech_style": "Marciana speaks formally and professionally, but becomes flustered and stammers when dealing with romantic situations. She often uses penguin-related metaphors and trivia to express her feelings, such as claiming that penguins are a highly-romantic species that bond for life with one mate.",
+    "backstory": "Marciana is on a graduation trip with her students. Embarrassed by the daring design of her swimsuit, she wears a penguin costume to cover herself, which is protected by a Penguin Squad given to her as a surprise gift by Rei. During the trip, her students Tia and Naga give everyone seashell necklaces. Marciana begins to feel an uneasy weight in her chest after seeing the protagonist compliment other Nikkes. With the help of her students, who set up a scheme to get her and the protagonist alone, she gathers seashells and goes on a beach date with him. Through their interactions, she realizes her unease was jealousy and that she is in love with the protagonist. She confesses her feelings, and they exchange gifts—a sturdy seashell from her and a shiny pebble from him—symbolizing penguins finding their mates.",
+    "relationships": {
+      "Commander (Protagonist)": "Marciana falls in love with him after realizing her jealousy towards other Nikkes. They share a beach date, a splash fight, and eventually confess their feelings to each other, exchanging gifts like penguin mates.",
+      "Tia": "One of Marciana's students in Dazzling Pearl. Tia cares deeply for her teacher and actively tries to matchmake Marciana with the protagonist, even suggesting a gift for their date.",
+      "Naga": "The other half of Dazzling Pearl. Naga helps devise the plan to get Marciana and the protagonist alone, recognizing her teacher's feelings before Marciana did.",
+      "Rei": "Gave Marciana the Penguin Squad as a surprise gift to protect her during the graduation trip."
+    },
+    "id": "c322",
+    "color": "#d5241a"
   },
   "Mary: Bay Goddess": {
     "appearance": "Dark brown hair in a side braid, closed smiling eyes, fair skin, curvy physique",
@@ -314,6 +357,17 @@
     },
     "id": "c354",
     "color": "#887173"
+  },
+  "Maxwell: Ordinary Mechanic": {
+    "appearance": "short blonde hair, blue eyes, smiling",
+    "defaultSkin": "white crop top, black bra, tight white pants with orange-teal accents, tech visor",
+    "defaultWeapon": "large white-gray futuristic railgun",
+    "personality": "",
+    "speech_style": "",
+    "backstory": "Maxwell: Ordinary Mechanic is described as Missilis Industry's best researcher who has returned with enhanced firepower and even sharper intelligence, capable of calculating all variables on the battlefield. In the Gluttony chapter of the main story, Matis (the squad she belongs to) debuted with a new modification to assist the Commando Unit once more. This variant represents an upgraded version of the base Maxwell character with improved combat and analytical capabilities.",
+    "relationships": {},
+    "id": "c105",
+    "color": "#2edbdb"
   },
   "Mica: Snow Buddy": {
     "appearance": "Long dark brown hair, blue eyes, headband",

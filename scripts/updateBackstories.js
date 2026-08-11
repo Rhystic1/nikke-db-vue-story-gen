@@ -23,6 +23,7 @@
  *   --target-file <name>  Target JSON file for create mode: base (default) or variants
  *   --update-scope <name> Scope for update mode: single (requires --char-name) or all (default)
  *   --provider <name>     API provider: gemini, openrouter, or pollinations
+ *   --openrouter-model    OpenRouter model: x-ai/grok-4.3 (default), z-ai/glm-5.2, or ~deepseek/deepseek-v4-flash-latest
  *   --pollinations-model  Pollinations model: grok (default), grok-large, or claude-fast
  *   --force               Skip overwrite confirmation in create mode
  *   --json-output         Print machine-readable JSON result on the last line
@@ -46,7 +47,8 @@ const WIKI_PROXY_URL = 'https://nikke-wiki-proxy.rhysticone.workers.dev'
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent'
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const POLLINATIONS_API_URL = 'https://gen.pollinations.ai/v1/chat/completions'
-const OPENROUTER_MODEL = 'x-ai/grok-4.3'
+let OPENROUTER_MODEL = 'x-ai/grok-4.3'
+const OPENROUTER_MODELS = ['x-ai/grok-4.3', 'z-ai/glm-5.2', '~deepseek/deepseek-v4-flash-latest']
 const POLLINATIONS_MODELS = ['grok', 'grok-large', 'claude-fast']
 const RATE_LIMIT_MS = parseInt(process.env.RATE_LIMIT_MS) || 2000
 
@@ -91,6 +93,7 @@ const CLI_CHAR_NAME = getArgValue('--char-name')
 const CLI_TARGET_FILE = getArgValue('--target-file')
 const CLI_UPDATE_SCOPE = getArgValue('--update-scope')
 const CLI_PROVIDER = getArgValue('--provider')
+const CLI_OPENROUTER_MODEL = getArgValue('--openrouter-model')
 const CLI_POLLINATIONS_MODEL = getArgValue('--pollinations-model')
 const CLI_FORCE = args.includes('--force')
 const CLI_JSON_OUTPUT = args.includes('--json-output')
@@ -116,6 +119,7 @@ let GEMINI_API_KEY = process.env.GEMINI_API_KEY
 let OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 let POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY
 let POLLINATIONS_MODEL = null
+let OPENROUTER_MODEL_SELECTED = false
 
 if (!GEMINI_API_KEY && !OPENROUTER_API_KEY && !POLLINATIONS_API_KEY) {
   console.error('Error: GEMINI_API_KEY, OPENROUTER_API_KEY, or POLLINATIONS_API_KEY environment variable is required')
@@ -138,6 +142,9 @@ function getProviderDisplayName() {
 function getProviderLogLabel() {
   if (API_PROVIDER === 'pollinations' && POLLINATIONS_MODEL) {
     return `${getProviderDisplayName()} (${POLLINATIONS_MODEL})`
+  }
+  if (API_PROVIDER === 'openrouter') {
+    return `${getProviderDisplayName()} (${OPENROUTER_MODEL})`
   }
   return getProviderDisplayName()
 }
@@ -1246,6 +1253,54 @@ async function selectPollinationsModel() {
   console.log(`Selected Pollinations model: ${POLLINATIONS_MODEL}\n`)
 }
 
+// Select OpenRouter model
+async function selectOpenRouterModel() {
+  OPENROUTER_MODEL_SELECTED = true
+  if (CLI_OPENROUTER_MODEL) {
+    const validModels = OPENROUTER_MODELS
+    if (!validModels.includes(CLI_OPENROUTER_MODEL)) {
+      console.error(`Error: Invalid --openrouter-model "${CLI_OPENROUTER_MODEL}". Must be: ${validModels.join(', ')}`)
+      process.exit(1)
+    }
+    OPENROUTER_MODEL = CLI_OPENROUTER_MODEL
+    console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
+    return
+  }
+
+  if (NON_INTERACTIVE) {
+    console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL} (default for non-interactive)\n`)
+    return
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  })
+
+  console.log('\nWhich OpenRouter model would you like to use?')
+  console.log('1) x-ai/grok-4.3 (current default)')
+  console.log('2) z-ai/glm-5.2')
+  console.log('3) ~deepseek/deepseek-v4-flash-latest')
+
+  const answer = await new Promise((resolve) => {
+    rl.question('\nEnter choice (1, 2, or 3): ', (input) => {
+      resolve(input.trim())
+    })
+  })
+
+  rl.close()
+
+  if (answer === '2') {
+    OPENROUTER_MODEL = 'z-ai/glm-5.2'
+  } else if (answer === '3') {
+    OPENROUTER_MODEL = '~deepseek/deepseek-v4-flash-latest'
+  } else {
+    OPENROUTER_MODEL = 'x-ai/grok-4.3'
+  }
+
+  console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
+}
+
 // Select API provider
 async function selectProvider() {
   const availableProviders = []
@@ -1261,7 +1316,7 @@ async function selectProvider() {
   if (OPENROUTER_API_KEY) {
     availableProviders.push({
       key: 'openrouter',
-      label: 'OpenRouter (x-ai/grok-4.1-fast)',
+      label: `OpenRouter (${OPENROUTER_MODEL})`,
       envVar: 'OPENROUTER_API_KEY'
     })
   }
@@ -1285,6 +1340,9 @@ async function selectProvider() {
     }
     API_PROVIDER = CLI_PROVIDER
     console.log(`Using ${getProviderDisplayName()} API (--provider flag)`)
+    if (API_PROVIDER === 'openrouter' && !OPENROUTER_MODEL_SELECTED) {
+      await selectOpenRouterModel()
+    }
     if (API_PROVIDER === 'pollinations') {
       await selectPollinationsModel()
     }
@@ -1296,6 +1354,10 @@ async function selectProvider() {
     const selectedProvider = availableProviders[0]
     API_PROVIDER = selectedProvider.key
     console.log(`Using ${getProviderDisplayName()} API (only ${selectedProvider.envVar} found)`)
+
+    if (API_PROVIDER === 'openrouter' && !OPENROUTER_MODEL_SELECTED) {
+      await selectOpenRouterModel()
+    }
 
     if (API_PROVIDER === 'pollinations') {
       await selectPollinationsModel()
@@ -1337,6 +1399,11 @@ async function selectProvider() {
   if (API_PROVIDER === 'pollinations') {
     console.log('Selected: Pollinations')
     await selectPollinationsModel()
+  } else if (API_PROVIDER === 'openrouter') {
+    console.log(`Selected: ${getProviderDisplayName()}`)
+    if (!OPENROUTER_MODEL_SELECTED) {
+      await selectOpenRouterModel()
+    }
   } else {
     console.log(`Selected: ${getProviderDisplayName()}\n`)
   }
@@ -2004,6 +2071,11 @@ async function processBackstoryUpdates() {
 }
 
 async function main() {
+  // If an OpenRouter key is present, ask for the model right away
+  if (OPENROUTER_API_KEY) {
+    await selectOpenRouterModel()
+  }
+
   await selectMode()
 
   // Create mode: gather character name and target file before selecting provider
@@ -2140,6 +2212,7 @@ function emitJsonResult() {
     status: 'ok',
     mode: MODE || CLI_MODE,
     provider: API_PROVIDER,
+    openrouterModel: API_PROVIDER === 'openrouter' ? OPENROUTER_MODEL : null,
     pollinationsModel: POLLINATIONS_MODEL || null,
     shard: CLI_SHARD ? { index: CLI_SHARD.index + 1, total: CLI_SHARD.total } : null,
     stats: FINAL_STATS || {}
