@@ -11,7 +11,7 @@ export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWit
 export { callPollinationsSummarization, callPollinations, callPollinationsWithoutJson } from '@/utils/pollinationsUtils'
 export { getFilteredAnimations, enrichActionsWithAnimations, formatAnimationsForContext } from '@/utils/animationEnrichmentUtils'
 export { handleTumblingWindowSummarization, type TumblingWindowState, type TumblingWindowCallbacks, type TumblingWindowResult } from '@/utils/tumblingWindowUtils'
-export { callGemini, callGeminiSummarization } from '@/utils/geminiUtils'
+export { callGemini, callGeminiSummarization, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS } from '@/utils/geminiUtils'
 
 // --- Internal helpers for OpenAI-compatible APIs ---
 

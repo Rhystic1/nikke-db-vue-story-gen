@@ -2,6 +2,7 @@
 // Extracted from ChatInterface.vue — reads localStorage and returns validated plain values.
 
 import { tokenUsageOptions, providerOptions } from '@/utils/llmUtils'
+import { GEMINI_DEFAULT_MODEL } from '@/utils/geminiUtils'
 
 // --- Shared localStorage keys ---
 
@@ -170,8 +171,8 @@ export function validateSavedModel(savedProvider: string, savedModel: string | u
 
   // Fallback to default
   let fallback: string | undefined
-  if (savedProvider === 'gemini') fallback = 'gemini-3.5-flash'
-  else if ((savedProvider === 'openrouter' || savedProvider === 'opencode-go') && firstDynamicModel) fallback = firstDynamicModel
+  if ((savedProvider === 'openrouter' || savedProvider === 'opencode-go' || savedProvider === 'gemini') && firstDynamicModel) fallback = firstDynamicModel
+  else if (savedProvider === 'gemini') fallback = GEMINI_DEFAULT_MODEL
 
   const warning = savedModel ? `Saved model '${savedModel}' is invalid or unavailable. Using default.` : undefined
 

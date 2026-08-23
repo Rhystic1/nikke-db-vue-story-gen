@@ -973,7 +973,7 @@ import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
 import { formatBackgroundFolderLoadFeedback, resolveAiBackgroundSelection } from '@/utils/storyBackgroundUtils'
 import { ttsEnabled, ttsEndpoint, ttsProvider, gptSovitsEndpoint, gptSovitsBasePath, chatterboxEndpoint, ttsProviderOptions, playTTS } from '@/utils/ttsUtils'
 import { allowWebSearchFallback, usesWikiFetch, usesPollinationsAutoFallback, webSearchFallbackHelpText, searchForCharacters, searchForCharactersWithNativeSearch, searchForCharactersViaWikiFetch, checkForSearchRequest as checkForSearchRequestUtil } from '@/utils/aiWebSearchUtils'
-import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, formatAnimationsForContext, getReasoningEffortOptions, handleTumblingWindowSummarization } from '@/utils/llmUtils'
+import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, formatAnimationsForContext, getReasoningEffortOptions, handleTumblingWindowSummarization } from '@/utils/llmUtils'
 import { captureSpineCanvasPlacement, restoreSpineCanvasPlacement } from '@/utils/spineUtils'
 import { isInteractiveOverlayTarget, isSpineCanvasAtPoint, getEventPoint } from '@/utils/overlayUtils'
 import { initChatLayout, createDragHandlers, createResizeHandlers, createViewportHandlers } from '@/utils/windowUtils'
@@ -1423,6 +1423,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const openRouterModels = ref<any[]>([])
 const pollinationsModels = ref<any[]>([])
 const openCodeGoModels = ref<any[]>([])
+const geminiModels = ref<any[]>([])
 const isRestoring = ref(false)
 const needsJsonReminder = ref(false)
 const isDev = import.meta.env.DEV
@@ -1460,14 +1461,7 @@ const setRandomLoadingMessage = () => {
 
 const modelOptions = computed(() => {
   if (apiProvider.value === 'gemini') {
-    return [
-      { label: 'Gemini 2.5 Flash', value: 'gemini-2.5-flash' },
-      { label: 'Gemini 2.5 Pro', value: 'gemini-2.5-pro' },
-      { label: 'Gemini 3.1 Flash-Lite', value: 'gemini-3.1-flash-lite' },
-      { label: 'Gemini 3.5 Flash', value: 'gemini-3.5-flash' },
-      { label: 'Gemini 3 Flash', value: 'gemini-3-flash-preview' },
-      { label: 'Gemini 3.1 Pro', value: 'gemini-3.1-pro-preview' }
-    ]
+    return geminiModels.value
   } else if (apiProvider.value === 'openrouter') {
     return openRouterModels.value
   } else if (apiProvider.value === 'opencode-go') {
@@ -1520,6 +1514,16 @@ const refreshOpenCodeGoModels = async () => {
   const validModels = openCodeGoModels.value.map((m) => m.value)
   if (!model.value || !validModels.includes(model.value)) {
     model.value = openCodeGoModels.value[0]?.value || ''
+  }
+}
+
+const refreshGeminiModels = async () => {
+  const fetchedModels = await fetchGeminiModels(apiKey.value.trim())
+  geminiModels.value = fetchedModels.length > 0 ? fetchedModels : GEMINI_FALLBACK_MODEL_OPTIONS
+
+  const validModels = geminiModels.value.map((m) => m.value)
+  if (!model.value || !validModels.includes(model.value)) {
+    model.value = validModels.includes(GEMINI_DEFAULT_MODEL) ? GEMINI_DEFAULT_MODEL : (geminiModels.value[0]?.value || '')
   }
 }
 
@@ -1883,6 +1887,8 @@ watch(apiKey, async (newVal) => {
     await refreshPollinationsModels()
   } else if (apiProvider.value === 'opencode-go') {
     await refreshOpenCodeGoModels()
+  } else if (apiProvider.value === 'gemini') {
+    await refreshGeminiModels()
   }
 })
 
@@ -2072,7 +2078,8 @@ watch(apiProvider, async (newVal) => {
 
   // Reset model when provider changes
   if (apiProvider.value === 'gemini') {
-    model.value = 'gemini-3.5-flash'
+    model.value = ''
+    await refreshGeminiModels()
   } else if (apiProvider.value === 'opencode-go') {
     model.value = ''
     await refreshOpenCodeGoModels()
@@ -2147,6 +2154,7 @@ const initializeSettings = async () => {
       {
         refreshOpenCodeGoModels,
         refreshPollinationsModels,
+        refreshGeminiModels,
         fetchOpenRouterModels: async () => await fetchOpenRouterModels()
       },
       {
@@ -2167,12 +2175,21 @@ const initializeSettings = async () => {
         },
         set pollinationsModels(value) {
           pollinationsModels.value = value
+        },
+        get geminiModels() {
+          return geminiModels.value
+        },
+        set geminiModels(value) {
+          geminiModels.value = value
         }
       }
     )
 
     if ((stored.apiProvider !== 'pollinations' && stored.apiProvider !== 'opencode-go') || validModels.length > 0) {
-      const fallbackModel = stored.apiProvider === 'openrouter' ? openRouterModels.value[0]?.value : openCodeGoModels.value[0]?.value
+      let fallbackModel: string | undefined
+      if (stored.apiProvider === 'openrouter') fallbackModel = openRouterModels.value[0]?.value
+      else if (stored.apiProvider === 'opencode-go') fallbackModel = openCodeGoModels.value[0]?.value
+      else if (stored.apiProvider === 'gemini') fallbackModel = geminiModels.value[0]?.value
       const { model: validModel, warning } = validateSavedModel(stored.apiProvider, stored.model, validModels, fallbackModel)
       if (validModel) model.value = validModel
       if (warning) console.warn(warning)
@@ -2189,6 +2206,8 @@ const initializeSettings = async () => {
     }
   } else if (apiProvider.value === 'pollinations' && pollinationsModels.value.length === 0) {
     await refreshPollinationsModels()
+  } else if (apiProvider.value === 'gemini' && geminiModels.value.length === 0) {
+    await refreshGeminiModels()
   }
 
   if (mobileOptimizations.value) {
@@ -2429,6 +2448,7 @@ const handleFileUpload = (event: Event) => {
             {
               refreshOpenCodeGoModels,
               refreshPollinationsModels,
+              refreshGeminiModels,
               fetchOpenRouterModels: async () => await fetchOpenRouterModels()
             },
             {
@@ -2449,6 +2469,12 @@ const handleFileUpload = (event: Event) => {
               },
               set pollinationsModels(value) {
                 pollinationsModels.value = value
+              },
+              get geminiModels() {
+                return geminiModels.value
+              },
+              set geminiModels(value) {
+                geminiModels.value = value
               }
             }
           )

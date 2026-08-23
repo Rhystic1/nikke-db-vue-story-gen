@@ -2,7 +2,72 @@ import { AIError } from '@/utils/chatUtils'
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 
+export const GEMINI_DEFAULT_MODEL = 'gemini-3.7-flash'
+
+export const GEMINI_FALLBACK_MODEL_OPTIONS = [
+  { label: 'Gemini 2.5 Flash', value: 'gemini-2.5-flash' },
+  { label: 'Gemini 2.5 Pro', value: 'gemini-2.5-pro' },
+  { label: 'Gemini 3.1 Flash-Lite', value: 'gemini-3.1-flash-lite' },
+  { label: 'Gemini 3.5 Flash', value: 'gemini-3.5-flash' },
+  { label: 'Gemini 3.7 Flash', value: 'gemini-3.7-flash' },
+  { label: 'Gemini 3 Flash', value: 'gemini-3-flash-preview' },
+  { label: 'Gemini 3.1 Pro', value: 'gemini-3.1-pro-preview' }
+]
+
+const GEMINI_MODEL_ID_EXCLUDE_PATTERN = /-tts|-image|-native-audio|-live|embedding|aqa|thinking-exp/
+
 const buildGeminiGenerateContentUrl = (model: string) => `${GEMINI_API_BASE_URL}/${model}:generateContent`
+
+const toGeminiModelId = (name: string) => name.replace(/^models\//, '')
+
+export const fetchGeminiModels = async (apiKey?: string) => {
+  const trimmedApiKey = apiKey?.trim()
+
+  if (!trimmedApiKey) {
+    return []
+  }
+
+  try {
+    const models: any[] = []
+    let pageToken: string | undefined
+
+    do {
+      const url = pageToken
+        ? `${GEMINI_API_BASE_URL}?pageSize=1000&pageToken=${encodeURIComponent(pageToken)}`
+        : `${GEMINI_API_BASE_URL}?pageSize=1000`
+
+      const response = await fetch(url, { headers: buildGeminiHeaders(trimmedApiKey) })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new AIError(errorData?.error?.code ?? response.status, errorData?.error?.message ?? response.statusText ?? 'Unknown error')
+      }
+
+      const data = await response.json()
+      models.push(...(Array.isArray(data?.models) ? data.models : []))
+      pageToken = typeof data?.nextPageToken === 'string' && data.nextPageToken ? data.nextPageToken : undefined
+    } while (pageToken && models.length < 2000)
+
+    return models
+      .filter((m: any) => {
+        const id = typeof m?.name === 'string' ? toGeminiModelId(m.name) : ''
+        return (
+          id.startsWith('gemini') &&
+          !GEMINI_MODEL_ID_EXCLUDE_PATTERN.test(id) &&
+          Array.isArray(m.supportedGenerationMethods) &&
+          m.supportedGenerationMethods.includes('generateContent')
+        )
+      })
+      .map((m: any) => ({
+        label: m.displayName || toGeminiModelId(m.name),
+        value: toGeminiModelId(m.name)
+      }))
+      .sort((a: any, b: any) => a.label.localeCompare(b.label))
+  } catch (error) {
+    console.error('Failed to fetch Gemini models:', error)
+    return []
+  }
+}
 
 const buildGeminiHeaders = (apiKey: string) => ({
   'Content-Type': 'application/json',
