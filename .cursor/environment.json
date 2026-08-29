@@ -1,0 +1,17 @@
+{
+  "name": "Nikke-DB-Vue",
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "description": "Vite dev server for the Nikke-DB Vue 3 SPA, served at http://localhost:5173"
+    }
+  ],
+  "ports": [
+    {
+      "name": "vite",
+      "port": 5173
+    }
+  ]
+}
