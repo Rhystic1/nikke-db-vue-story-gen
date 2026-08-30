@@ -1,4 +1,5 @@
 import { AIError } from '@/utils/chatUtils'
+import { captureModelReasoning } from '@/utils/aiReasoningUtils'
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 
@@ -97,7 +98,7 @@ const buildGeminiContents = (messages: any[]) => {
   return { contents, systemMessage }
 }
 
-const extractGeminiText = (data: any, opts?: { checkProhibitedContent?: boolean }) => {
+const extractGeminiText = (data: any, opts?: { checkProhibitedContent?: boolean; includeReasoning?: boolean }) => {
   if (opts?.checkProhibitedContent && data.promptFeedback?.blockReason === 'PROHIBITED_CONTENT') {
     console.error('Gemini content blocked:', data)
     throw new Error('GEMINI_PROHIBITED_CONTENT')
@@ -115,11 +116,19 @@ const extractGeminiText = (data: any, opts?: { checkProhibitedContent?: boolean 
     throw new Error('Gemini API Error: Empty content in response')
   }
 
-  const textPart = candidate.content.parts.find((p: any) => p.text !== undefined)
+  const parts = candidate.content.parts
+  const thoughtTexts = parts
+    .filter((p: any) => p.thought === true && typeof p.text === 'string' && p.text)
+    .map((p: any) => p.text)
+  const textPart = parts.find((p: any) => p.text !== undefined && !p.thought) || parts.find((p: any) => p.text !== undefined)
 
   if (!textPart) {
     console.error('Gemini returned no text part:', candidate.content.parts)
     throw new Error('Gemini API Error: No text in response')
+  }
+
+  if (opts?.includeReasoning) {
+    captureModelReasoning(thoughtTexts.join('\n'))
   }
 
   return textPart.text
@@ -161,8 +170,8 @@ export const callGeminiSummarization = async (messages: any[], apiKey: string, m
   return extractGeminiText(data)
 }
 
-export const callGemini = async (messages: any[], opts: { model: string; apiKey: string; allowWebSearchFallback: boolean; enableWebSearch?: boolean; reasoningEffort?: string; signal?: AbortSignal }) => {
-  const { model, apiKey, allowWebSearchFallback, enableWebSearch = false, reasoningEffort, signal } = opts
+export const callGemini = async (messages: any[], opts: { model: string; apiKey: string; allowWebSearchFallback: boolean; enableWebSearch?: boolean; reasoningEffort?: string; includeReasoning?: boolean; signal?: AbortSignal }) => {
+  const { model, apiKey, allowWebSearchFallback, enableWebSearch = false, reasoningEffort, includeReasoning = false, signal } = opts
   const { contents, systemMessage } = buildGeminiContents(messages)
 
   const shouldSearch = enableWebSearch && allowWebSearchFallback
@@ -198,7 +207,7 @@ export const callGemini = async (messages: any[], opts: { model: string; apiKey:
       }
 
       requestBody.generationConfig.thinkingConfig = {
-        includeThoughts: false,
+        includeThoughts: includeReasoning,
         thinkingBudget: budget
       }
     } else if (model.includes('gemini-3')) {
@@ -244,9 +253,17 @@ export const callGemini = async (messages: any[], opts: { model: string; apiKey:
       }
 
       requestBody.generationConfig.thinkingConfig = {
-        includeThoughts: false,
+        includeThoughts: includeReasoning,
         thinkingLevel: level
       }
+    } else if (includeReasoning) {
+      requestBody.generationConfig.thinkingConfig = {
+        includeThoughts: true
+      }
+    }
+  } else if (includeReasoning) {
+    requestBody.generationConfig.thinkingConfig = {
+      includeThoughts: true
     }
   }
 
@@ -275,5 +292,5 @@ export const callGemini = async (messages: any[], opts: { model: string; apiKey:
   }
 
   const data = await response.json()
-  return extractGeminiText(data, { checkProhibitedContent: true })
+  return extractGeminiText(data, { checkProhibitedContent: true, includeReasoning })
 }

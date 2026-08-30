@@ -75,61 +75,73 @@ export const getReasoningEffortOptions = (provider: string): { label: string; va
 }
 
 // Structured output schema builder (used by ChatInterface for OpenRouter/Pollinations JSON schema mode)
-export const buildStoryResponseSchema = (isGameMode: boolean) => ({
-  type: 'json_schema',
-  json_schema: {
-    name: 'StoryResponse',
-    schema: {
-      type: 'object',
-      properties: {
-        actions: {
-          type: 'array',
-          minItems: 1,
-          items: {
-            type: 'object',
-            properties: {
-              needs_search: { type: 'array', items: { type: 'string' } },
-              memory: { type: 'object' },
-              characterProgression: { type: 'object' },
-              text: { type: 'string' },
-              character: { type: 'string' },
-              animation: { type: 'string' },
-              background: {
-                anyOf: [
-                  { type: 'string' },
-                  {
-                    type: 'object',
-                    properties: {
-                      key: { type: 'string' },
-                      variant: { type: 'string' }
-                    },
-                    required: ['key'],
-                    additionalProperties: false
-                  }
-                ]
-              },
-              speaking: { type: 'boolean' },
-              duration: { type: 'number' }
-            },
-            required: ['text', 'character', 'speaking', 'animation']
-          }
+export const buildStoryResponseSchema = (isGameMode: boolean, includeAnimReason = false) => {
+  const actionProperties: Record<string, any> = {
+    needs_search: { type: 'array', items: { type: 'string' } },
+    memory: { type: 'object' },
+    characterProgression: { type: 'object' },
+    text: { type: 'string' },
+    character: { type: 'string' },
+    animation: { type: 'string' }
+  }
+
+  if (includeAnimReason) {
+    actionProperties.anim_reason = { type: 'string' }
+  }
+
+  actionProperties.background = {
+    anyOf: [
+      { type: 'string' },
+      {
+        type: 'object',
+        properties: {
+          key: { type: 'string' },
+          variant: { type: 'string' }
         },
-        // Game Mode ONLY: choices returned at top-level, then we attach them to the last action.
-        choices: isGameMode
-          ? {
+        required: ['key'],
+        additionalProperties: false
+      }
+    ]
+  }
+  actionProperties.speaking = { type: 'boolean' }
+  actionProperties.duration = { type: 'number' }
+
+  const requiredFields = ['text', 'character', 'speaking', 'animation']
+  if (includeAnimReason) requiredFields.push('anim_reason')
+
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: 'StoryResponse',
+      schema: {
+        type: 'object',
+        properties: {
+          actions: {
             type: 'array',
+            minItems: 1,
             items: {
               type: 'object',
-              properties: {
-                text: { type: 'string' },
-                type: { type: 'string', enum: ['dialogue', 'action'] }
-              },
-              required: ['text', 'type']
+              properties: actionProperties,
+              required: requiredFields
             }
-          }
-          : undefined
-      },
-      required: isGameMode ? ['actions', 'choices'] : ['actions']
+          },
+          // Game Mode ONLY: choices returned at top-level, then we attach them to the last action.
+          choices: isGameMode
+            ? {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  text: { type: 'string' },
+                  type: { type: 'string', enum: ['dialogue', 'action'] }
+                },
+                required: ['text', 'type']
+              }
+            }
+            : undefined
+        },
+        required: isGameMode ? ['actions', 'choices'] : ['actions']
+      }
     }
   }
-})
+}

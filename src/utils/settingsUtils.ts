@@ -12,6 +12,9 @@ export const MOBILE_OPTIMIZATIONS_STORAGE_KEY = 'nikke_story_gen_mobile_optimiza
 /** localStorage key for persisting the previous state before mobile optimizations was enabled. */
 export const MOBILE_OPTIMIZATIONS_PREV_KEY = 'nikke_story_gen_mobile_optimizations_prev'
 
+/** localStorage key for the story-gen Debug Mode toggle (dev builds only). */
+export const DEBUG_MODE_STORAGE_KEY = 'nikke_debug_mode'
+
 // --- Types ---
 
 /** All settings that can be loaded from localStorage. */
@@ -37,6 +40,7 @@ export interface StoredSettings {
   playerCharacterName?: string
   backgroundImagesEnabled?: boolean
   mobileOptimizations?: boolean
+  debugMode?: boolean
 }
 
 /**
@@ -155,6 +159,13 @@ export function loadSettingsFromStorage(): StoredSettings {
   const savedMobileOptimizations = localStorage.getItem(MOBILE_OPTIMIZATIONS_STORAGE_KEY)
   if (savedMobileOptimizations !== null) {
     result.mobileOptimizations = savedMobileOptimizations === 'true'
+  }
+
+  if (import.meta.env.DEV) {
+    const savedDebugMode = localStorage.getItem(DEBUG_MODE_STORAGE_KEY)
+    if (savedDebugMode !== null) {
+      result.debugMode = savedDebugMode === 'true'
+    }
   }
 
   return result
