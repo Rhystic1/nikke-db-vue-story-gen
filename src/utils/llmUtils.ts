@@ -6,6 +6,7 @@ import { callGeminiSummarization } from '@/utils/geminiUtils'
 import { callPollinationsSummarization } from '@/utils/pollinationsUtils'
 import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, modelsWithoutCacheControlSupport, buildStoryResponseSchema } from '@/utils/providerConfigUtils'
 import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
+import { applyExplicitCacheControl, logLlmExchange, modelUsesExplicitCacheControl } from '@/utils/contextCacheUtils'
 
 // Re-exports from extracted modules
 export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, providerOptions, tokenUsageOptions, getReasoningEffortOptions, buildStoryResponseSchema } from '@/utils/providerConfigUtils'
@@ -70,6 +71,8 @@ const parseOpenAiCompatibleTextResponse = async (response: Response, includeReas
 }
 
 const sendOpenAiCompatibleRequest = async (url: string, opts: { requestBody: any; apiKey?: string; signal?: AbortSignal }) => {
+  logLlmExchange(url, opts.requestBody)
+
   return await fetch(url, {
     method: 'POST',
     headers: getOpenAiCompatibleHeaders(opts.apiKey),
@@ -99,16 +102,17 @@ const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching:
 
   if (shouldAddCacheControl && systemContent) {
     const systemBlock = [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral' } }]
-    if (anthropicMessages.length >= 1) {
-      const lastIdx = anthropicMessages.length - 1
-      const lastMsg = anthropicMessages[lastIdx]
+    if (anthropicMessages.length >= 2) {
+      const lastHistoryIdx = anthropicMessages.length - 2
+      const lastMsg = anthropicMessages[lastHistoryIdx]
       if (typeof lastMsg.content === 'string') {
-        anthropicMessages[lastIdx] = {
+        anthropicMessages[lastHistoryIdx] = {
           ...lastMsg,
           content: [{ type: 'text', text: lastMsg.content, cache_control: { type: 'ephemeral' } }]
         }
       }
     }
+
     return { system: systemBlock, messages: anthropicMessages, shouldAddCacheControl }
   }
 
@@ -150,6 +154,7 @@ const parseAnthropicTextResponse = async (response: Response, includeReasoning =
 
   const data = await response.json()
   const { content, reasoning } = extractAnthropicTextAndReasoning(data)
+  logLlmExchange('anthropic-compatible', undefined, data)
   if (includeReasoning) {
     captureModelReasoning(reasoning)
   }
@@ -160,6 +165,8 @@ const parseAnthropicTextResponse = async (response: Response, includeReasoning =
 }
 
 const sendAnthropicCompatibleRequest = async (url: string, opts: { requestBody: any; apiKey: string; signal?: AbortSignal }) => {
+  logLlmExchange(url, opts.requestBody)
+
   return await fetch(url, {
     method: 'POST',
     headers: {
@@ -705,54 +712,38 @@ export const callOpenRouter = async (
     reasoningEffort?: string
     includeAnimReason?: boolean
     includeReasoning?: boolean
+    sessionId?: string
     signal?: AbortSignal
   }
 ) => {
-  const { model, apiKey, enableContextCaching, allowWebSearchFallback, modeIsGame, enableWebSearch = false, prompts, reasoningEffort, includeAnimReason = false, includeReasoning = false, signal } = opts
+  const { model, apiKey, enableContextCaching, allowWebSearchFallback, modeIsGame, enableWebSearch = false, prompts, reasoningEffort, includeAnimReason = false, includeReasoning = false, sessionId, signal } = opts
 
   let processedMessages = messages
 
-  if (enableContextCaching) {
-    processedMessages = messages.map((m) => ({ ...m }))
-
-    if (processedMessages.length > 0 && processedMessages[0].role === 'system') {
-      const systemContent = processedMessages[0].content
-      processedMessages[0] = {
-        ...processedMessages[0],
-        content: [
-          {
-            type: 'text',
-            text: systemContent,
-            cache_control: { type: 'ephemeral' }
-          }
-        ]
-      }
-    }
-
-    if (processedMessages.length >= 2) {
-      const lastHistoryIndex = processedMessages.length - 2
-      if (lastHistoryIndex > 0 || (lastHistoryIndex === 0 && processedMessages[0].role !== 'system')) {
-        const msg = processedMessages[lastHistoryIndex]
-        if (typeof msg.content === 'string') {
-          processedMessages[lastHistoryIndex] = {
-            ...msg,
-            content: [
-              {
-                type: 'text',
-                text: msg.content,
-                cache_control: { type: 'ephemeral' }
-              }
-            ]
-          }
-        }
-      }
-    }
+  if (enableContextCaching && modelUsesExplicitCacheControl(model)) {
+    processedMessages = applyExplicitCacheControl(messages)
   }
 
   const jsonEnforcement = includeAnimReason && prompts.systemPrompt?.debugAnimReasonInstruction
     ? `${prompts.reminders.jsonEnforcement}\n${prompts.systemPrompt.debugAnimReasonInstruction}`
     : prompts.reminders.jsonEnforcement
   const messagesWithEnforcement = [...processedMessages, { role: 'user', content: jsonEnforcement }]
+
+  const openRouterHeaders: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    'HTTP-Referer': window.location.href,
+    'X-Title': 'Nikke DB Story Gen',
+    'Content-Type': 'application/json'
+  }
+  if (sessionId) {
+    openRouterHeaders['x-session-id'] = sessionId
+  }
+
+  const attachSession = (body: any) => {
+    if (sessionId) body.session_id = sessionId
+
+    return body
+  }
 
   const buildWebPlugin = () => {
     if (!enableWebSearch) return undefined
@@ -779,14 +770,12 @@ export const callOpenRouter = async (
       requestBody.plugins = webPlugin
     }
 
+    attachSession(requestBody)
+    logLlmExchange('OpenRouter', requestBody)
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': window.location.href,
-        'X-Title': 'Nikke DB Story Gen',
-        'Content-Type': 'application/json'
-      },
+      headers: openRouterHeaders,
       body: JSON.stringify(requestBody),
       signal
     })
@@ -844,14 +833,12 @@ export const callOpenRouter = async (
 
   if (plugins.length > 0) requestBody.plugins = plugins
 
+  attachSession(requestBody)
+  logLlmExchange('OpenRouter', requestBody)
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': window.location.href,
-      'X-Title': 'Nikke DB Story Gen',
-      'Content-Type': 'application/json'
-    },
+    headers: openRouterHeaders,
     body: JSON.stringify(requestBody),
     signal
   })

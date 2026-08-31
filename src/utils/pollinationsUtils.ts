@@ -3,11 +3,24 @@ import { AIError, logDebug } from '@/utils/chatUtils'
 import { modelsWithoutJsonSupport, modelsWithoutCacheControlSupport, modelsRequiringStreamForHighTokens } from './providerConfigUtils'
 import { buildStoryResponseSchema } from '@/utils/providerConfigUtils'
 import { captureModelReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
+import { applySystemPrefixCacheControl, logLlmExchange, modelUsesExplicitCacheControl } from '@/utils/contextCacheUtils'
 
 const buildPollinationsMessages = (messages: any[], model: string, enableContextCaching?: boolean) => {
-  const shouldAddCacheControl = !!enableContextCaching && !modelsWithoutCacheControlSupport.value.has(model)
-  const processedMessages = shouldAddCacheControl ? messages.map((m) => ({ ...m, cache_control: { type: 'ephemeral' } })) : messages
+  const shouldAddCacheControl = !!enableContextCaching && modelUsesExplicitCacheControl(model) && !modelsWithoutCacheControlSupport.value.has(model)
+  const processedMessages = shouldAddCacheControl ? applySystemPrefixCacheControl(messages) : messages
+
   return { processedMessages, shouldAddCacheControl }
+}
+
+const postPollinations = async (url: string, headers: Record<string, string>, requestBody: any, signal?: AbortSignal) => {
+  logLlmExchange('Pollinations', requestBody)
+
+  return await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody),
+    signal
+  })
 }
 
 /**
@@ -29,12 +42,7 @@ const handleCacheControlRetry = async (status: number, errorData: any, shouldAdd
   sessionStorage.setItem('modelsWithoutCacheControlSupport', JSON.stringify([...modelsWithoutCacheControlSupport.value]))
 
   requestBody.messages = messages
-  const retryResponse = await fetch(url, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(requestBody),
-    signal
-  })
+  const retryResponse = await postPollinations(url, headers, requestBody, signal)
 
   if (!retryResponse.ok) {
     const retryErrorData = await retryResponse.json().catch(() => ({}))
@@ -130,12 +138,7 @@ export const callPollinationsSummarization = async (messages: any[], apiKey: str
 
   const url = 'https://gen.pollinations.ai/v1/chat/completions'
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(requestBody),
-    signal
-  })
+  const response = await postPollinations(url, headers, requestBody, signal)
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -146,12 +149,7 @@ export const callPollinationsSummarization = async (messages: any[], apiKey: str
       requestBody.stream = true
       modelsRequiringStreamForHighTokens.value.add(model)
       sessionStorage.setItem('modelsRequiringStreamForHighTokens', JSON.stringify([...modelsRequiringStreamForHighTokens.value]))
-      const retryResponse = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody),
-        signal
-      })
+      const retryResponse = await postPollinations(url, headers, requestBody, signal)
 
       if (!retryResponse.ok) {
         const retryErrorData = await retryResponse.json().catch(() => ({}))
@@ -173,12 +171,7 @@ export const callPollinationsSummarization = async (messages: any[], apiKey: str
       if (cacheRetry.retryErrorData?.error?.message?.includes('max_tokens')) {
         console.warn(`Model ${model} also doesn't support 32768 max_tokens, falling back to 16384...`)
         requestBody.max_tokens = 16384
-        const fallbackResponse = await fetch(url, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(requestBody),
-          signal
-        })
+        const fallbackResponse = await postPollinations(url, headers, requestBody, signal)
 
         if (!fallbackResponse.ok) {
           const fallbackErrorData = await fallbackResponse.json().catch(() => ({}))
@@ -194,12 +187,7 @@ export const callPollinationsSummarization = async (messages: any[], apiKey: str
     if (response.status === 400 && errorData?.error?.message?.includes('max_tokens')) {
       console.warn(`Model ${model} doesn't support 32768 max_tokens, falling back to 16384...`)
       requestBody.max_tokens = 16384
-      const retryResponse = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody),
-        signal
-      })
+      const retryResponse = await postPollinations(url, headers, requestBody, signal)
 
       if (!retryResponse.ok) {
         const retryErrorData = await retryResponse.json().catch(() => ({}))
@@ -268,12 +256,7 @@ export const callPollinations = async (
 
   const url = 'https://gen.pollinations.ai/v1/chat/completions'
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(requestBody),
-    signal
-  })
+  const response = await postPollinations(url, headers, requestBody, signal)
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -288,12 +271,7 @@ export const callPollinations = async (
       requestBody.stream = true
       modelsRequiringStreamForHighTokens.value.add(model)
       sessionStorage.setItem('modelsRequiringStreamForHighTokens', JSON.stringify([...modelsRequiringStreamForHighTokens.value]))
-      const retryResponse = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody),
-        signal
-      })
+      const retryResponse = await postPollinations(url, headers, requestBody, signal)
 
       if (!retryResponse.ok) {
         const retryErrorData = await retryResponse.json().catch(() => ({}))
@@ -368,12 +346,7 @@ export const callPollinationsWithoutJson = async (messages: any[], opts: { model
 
   const url = 'https://gen.pollinations.ai/v1/chat/completions'
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(requestBody),
-    signal
-  })
+  const response = await postPollinations(url, headers, requestBody, signal)
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -386,12 +359,7 @@ export const callPollinationsWithoutJson = async (messages: any[], opts: { model
       requestBody.stream = true
       modelsRequiringStreamForHighTokens.value.add(model)
       sessionStorage.setItem('modelsRequiringStreamForHighTokens', JSON.stringify([...modelsRequiringStreamForHighTokens.value]))
-      const retryResponse = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody),
-        signal
-      })
+      const retryResponse = await postPollinations(url, headers, requestBody, signal)
 
       if (!retryResponse.ok) {
         const retryErrorData = await retryResponse.json().catch(() => ({}))

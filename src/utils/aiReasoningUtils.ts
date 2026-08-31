@@ -1,3 +1,5 @@
+import { logLlmExchange } from '@/utils/contextCacheUtils'
+
 let pendingReasoning: string | undefined
 
 export function resetModelReasoning() {
@@ -52,6 +54,7 @@ export function captureReasoningFromOpenAiData(data: any, includeReasoning: bool
 
 export function takeOpenAiMessageContent(data: any, includeReasoning = false): string {
   captureReasoningFromOpenAiData(data, includeReasoning)
+  logLlmExchange('openai-compatible', undefined, data)
 
   return data?.choices?.[0]?.message?.content
 }
