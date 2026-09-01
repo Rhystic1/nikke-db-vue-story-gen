@@ -16,19 +16,32 @@ export const providerOptions = [
 const OPENCODE_GO_BASE = import.meta.env.DEV ? '/opencode-go' : 'https://opencode.ai'
 export const OPENCODE_GO_CHAT_COMPLETIONS_URL = `${OPENCODE_GO_BASE}/zen/go/v1/chat/completions`
 export const OPENCODE_GO_MESSAGES_URL = `${OPENCODE_GO_BASE}/zen/go/v1/messages`
+export const OPENCODE_GO_RESPONSES_URL = `${OPENCODE_GO_BASE}/zen/go/v1/responses`
 export const OPENCODE_GO_MODELS_URL = `${OPENCODE_GO_BASE}/zen/go/v1/models`
 export const OPENCODE_GO_EXCLUDED_MODEL_IDS = new Set([
   'minimax-m2.5',
   'minimax-m2.7'
 ])
+/** MiniMax / Qwen on OpenCode Go use Anthropic-style POST /messages. */
 export const OPENCODE_GO_ANTHROPIC_MODELS = new Set([
   'minimax-m3',
   'minimax-m2.7',
   'minimax-m2.5',
+  'qwen3.8-max',
+  'qwen3.8-flash',
   'qwen3.7-max',
   'qwen3.7-plus',
   'qwen3.6-plus'
 ])
+/** Grok 4.6, GPT 5.6 Luna, and Muse Spark use OpenAI Responses, not chat/completions. */
+export const OPENCODE_GO_RESPONSES_MODELS = new Set([
+  'grok-4.6',
+  'gpt-5.6-luna',
+  'muse-spark-1.2-contributor'
+])
+
+export const isOpenCodeGoAnthropicModel = (model: string) => OPENCODE_GO_ANTHROPIC_MODELS.has(model)
+export const isOpenCodeGoResponsesModel = (model: string) => OPENCODE_GO_RESPONSES_MODELS.has(model)
 
 export const tokenUsageOptions = [
   { label: 'Low (10 turns)', value: 'low' },

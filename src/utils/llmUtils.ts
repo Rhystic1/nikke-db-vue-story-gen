@@ -4,8 +4,9 @@
 import { AIError, logDebug } from '@/utils/chatUtils'
 import { callGeminiSummarization } from '@/utils/geminiUtils'
 import { callPollinationsSummarization } from '@/utils/pollinationsUtils'
-import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, modelsWithoutCacheControlSupport, buildStoryResponseSchema } from '@/utils/providerConfigUtils'
-import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
+import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_RESPONSES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, modelsWithoutCacheControlSupport, buildStoryResponseSchema, isOpenCodeGoAnthropicModel, isOpenCodeGoResponsesModel } from '@/utils/providerConfigUtils'
+import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent, takeResponsesOutputText } from '@/utils/aiReasoningUtils'
+import { applyExplicitCacheControl, applyOpenCodeGoCacheBreakpoints, attachGrokCacheAffinityHeaders, attachOpenCodeGoSessionCacheFields, logLlmExchange, modelUsesExplicitCacheControl, openCodeGoRejectsCacheStamping, splitSystemInstructionsAndInput } from '@/utils/contextCacheUtils'
 
 // Re-exports from extracted modules
 export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, providerOptions, tokenUsageOptions, getReasoningEffortOptions, buildStoryResponseSchema } from '@/utils/providerConfigUtils'
@@ -69,19 +70,22 @@ const parseOpenAiCompatibleTextResponse = async (response: Response, includeReas
   return takeOpenAiMessageContent(data, includeReasoning)
 }
 
-const sendOpenAiCompatibleRequest = async (url: string, opts: { requestBody: any; apiKey?: string; signal?: AbortSignal }) => {
+const sendOpenAiCompatibleRequest = async (url: string, opts: { requestBody: any; apiKey?: string; signal?: AbortSignal; extraHeaders?: Record<string, string> }) => {
+  logLlmExchange(url, opts.requestBody)
+
   return await fetch(url, {
     method: 'POST',
-    headers: getOpenAiCompatibleHeaders(opts.apiKey),
+    headers: {
+      ...getOpenAiCompatibleHeaders(opts.apiKey),
+      ...(opts.extraHeaders || {})
+    },
     body: JSON.stringify(opts.requestBody),
     signal: opts.signal
   })
 }
 
-const isOpenCodeGoAnthropicModel = (model: string) => OPENCODE_GO_ANTHROPIC_MODELS.has(model)
-
 const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching: boolean, model: string) => {
-  const shouldAddCacheControl = enableContextCaching && !modelsWithoutCacheControlSupport.value.has(model)
+  const shouldAddCacheControl = enableContextCaching && !openCodeGoRejectsCacheStamping(model) && !modelsWithoutCacheControlSupport.value.has(model)
 
   let systemContent: string | undefined
   const anthropicMessages: any[] = []
@@ -97,19 +101,13 @@ const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching:
     })
   }
 
-  if (shouldAddCacheControl && systemContent) {
-    const systemBlock = [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral' } }]
-    if (anthropicMessages.length >= 1) {
-      const lastIdx = anthropicMessages.length - 1
-      const lastMsg = anthropicMessages[lastIdx]
-      if (typeof lastMsg.content === 'string') {
-        anthropicMessages[lastIdx] = {
-          ...lastMsg,
-          content: [{ type: 'text', text: lastMsg.content, cache_control: { type: 'ephemeral' } }]
-        }
-      }
-    }
-    return { system: systemBlock, messages: anthropicMessages, shouldAddCacheControl }
+  if (shouldAddCacheControl) {
+    const stampedMessages = applyOpenCodeGoCacheBreakpoints(anthropicMessages)
+    const system = typeof systemContent === 'string' && systemContent
+      ? [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral', ttl: '1h' } }]
+      : systemContent
+
+    return { system, messages: stampedMessages, shouldAddCacheControl }
   }
 
   return { system: systemContent, messages: anthropicMessages, shouldAddCacheControl }
@@ -121,11 +119,12 @@ const buildAnthropicRequestBody = (opts: {
   model: string
   enableContextCaching: boolean
   reasoningEffort?: string
+  sessionId?: string
 }) => {
-  const { messages, maxTokens, model, enableContextCaching, reasoningEffort } = opts
+  const { messages, maxTokens, model, enableContextCaching, reasoningEffort, sessionId } = opts
   const { system, messages: anthropicMessages, shouldAddCacheControl } = convertOpenAiToAnthropicMessages(messages, enableContextCaching, model)
 
-  const requestBody: any = {
+  let requestBody: any = {
     model,
     max_tokens: maxTokens,
     messages: anthropicMessages
@@ -139,7 +138,86 @@ const buildAnthropicRequestBody = (opts: {
     requestBody.reasoning = { effort: reasoningEffort }
   }
 
+  requestBody = attachOpenCodeGoSessionCacheFields(requestBody, {
+    enable: enableContextCaching,
+    model,
+    sessionId,
+    includeRetention: true
+  })
+
   return { requestBody, shouldAddCacheControl }
+}
+
+const withOpenCodeGoCompletionsCache = (requestBody: any, opts: { enableContextCaching: boolean; model: string; sessionId?: string }) => {
+  const { enableContextCaching, model, sessionId } = opts
+  if (!enableContextCaching || openCodeGoRejectsCacheStamping(model)) return requestBody
+
+  let next = attachOpenCodeGoSessionCacheFields(requestBody, {
+    enable: true,
+    model,
+    sessionId,
+    includeRetention: false
+  })
+
+  if (!modelsWithoutCacheControlSupport.value.has(model) && Array.isArray(next.messages)) {
+    next = { ...next, messages: applyOpenCodeGoCacheBreakpoints(next.messages) }
+  }
+
+  return next
+}
+
+const buildOpenCodeGoResponsesBody = (opts: {
+  messages: any[]
+  model: string
+  maxTokens: number
+  reasoningEffort?: string
+  enableContextCaching?: boolean
+  sessionId?: string
+  includeJsonSchema?: boolean
+  modeIsGame?: boolean
+  includeAnimReason?: boolean
+}) => {
+  const { instructions, input } = splitSystemInstructionsAndInput(opts.messages)
+  let requestBody: any = {
+    model: opts.model,
+    input,
+    max_output_tokens: opts.maxTokens,
+    store: false
+  }
+
+  if (instructions) requestBody.instructions = instructions
+
+  if (opts.reasoningEffort && opts.reasoningEffort !== 'default') {
+    requestBody.reasoning = { effort: opts.reasoningEffort }
+  }
+
+  if (opts.includeJsonSchema) {
+    const schema = buildStoryResponseSchema(!!opts.modeIsGame, !!opts.includeAnimReason)
+    requestBody.text = {
+      format: {
+        type: 'json_schema',
+        name: schema.json_schema.name,
+        schema: schema.json_schema.schema,
+        strict: false
+      }
+    }
+  }
+
+  requestBody = attachOpenCodeGoSessionCacheFields(requestBody, {
+    enable: !!opts.enableContextCaching,
+    model: opts.model,
+    sessionId: opts.sessionId,
+    includeRetention: true
+  })
+
+  return requestBody
+}
+
+const openCodeGoExtraHeaders = (model: string, sessionId?: string) => {
+  const headers: Record<string, string> = {}
+  attachGrokCacheAffinityHeaders(headers, model, sessionId)
+
+  return headers
 }
 
 const parseAnthropicTextResponse = async (response: Response, includeReasoning = false) => {
@@ -150,6 +228,7 @@ const parseAnthropicTextResponse = async (response: Response, includeReasoning =
 
   const data = await response.json()
   const { content, reasoning } = extractAnthropicTextAndReasoning(data)
+  logLlmExchange('anthropic-compatible', undefined, data)
   if (includeReasoning) {
     captureModelReasoning(reasoning)
   }
@@ -160,6 +239,8 @@ const parseAnthropicTextResponse = async (response: Response, includeReasoning =
 }
 
 const sendAnthropicCompatibleRequest = async (url: string, opts: { requestBody: any; apiKey: string; signal?: AbortSignal }) => {
+  logLlmExchange(url, opts.requestBody)
+
   return await fetch(url, {
     method: 'POST',
     headers: {
@@ -172,16 +253,39 @@ const sendAnthropicCompatibleRequest = async (url: string, opts: { requestBody: 
   })
 }
 
-const sendOpenCodeGoRequest = async (requestBody: any, apiKey: string, signal?: AbortSignal) => {
+const sendOpenCodeGoRequest = async (requestBody: any, apiKey: string, signal?: AbortSignal, extraHeaders?: Record<string, string>) => {
   const response = await sendOpenAiCompatibleRequest(OPENCODE_GO_CHAT_COMPLETIONS_URL, {
     requestBody,
     apiKey,
-    signal
+    signal,
+    extraHeaders
   })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     console.error('OpenCode Go API Error Details:', errorData)
+
+    if (response.status === 429) {
+      throw new Error('RATE_LIMITED')
+    }
+
+    return { response, errorData }
+  }
+
+  return { response }
+}
+
+const sendOpenCodeGoResponsesRequest = async (requestBody: any, apiKey: string, signal?: AbortSignal, extraHeaders?: Record<string, string>) => {
+  const response = await sendOpenAiCompatibleRequest(OPENCODE_GO_RESPONSES_URL, {
+    requestBody,
+    apiKey,
+    signal,
+    extraHeaders
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    console.error('OpenCode Go Responses API Error Details:', errorData)
 
     if (response.status === 429) {
       throw new Error('RATE_LIMITED')
@@ -214,50 +318,95 @@ const sendOpenCodeGoAnthropicRequest = async (requestBody: any, apiKey: string, 
   return { response }
 }
 
+const parseResponsesTextResponse = async (response: Response, includeReasoning = false) => {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new AIError(errorData?.error?.code ?? response.status, errorData?.error?.message ?? response.statusText ?? 'Unknown error')
+  }
+
+  const data = await response.json()
+
+  return takeResponsesOutputText(data, includeReasoning)
+}
+
 const isReasoningParameterError = (errorData: any) => {
   const msg = (errorData?.error?.message || '') + ' ' + (errorData?.error?.code || '')
   return msg.toLowerCase().includes('reasoning') || (typeof errorData?.message === 'string' && errorData.message.toLowerCase().includes('reasoning'))
 }
 
 const isCacheControlError = (errorData: any) => {
-  const msg = (errorData?.error?.message || '') + ' ' + (errorData?.error?.type || '')
-  return msg.toLowerCase().includes('cache_control') || msg.toLowerCase().includes('cache control')
+  const msg = JSON.stringify(errorData || {}).toLowerCase()
+
+  return msg.includes('cache_control') || msg.includes('cache control')
 }
 
-const callOpenCodeGoTextRequest = async (opts: { messages: any[]; model: string; apiKey: string; maxTokens: number; reasoningEffort?: string; enableContextCaching?: boolean; includeReasoning?: boolean; signal?: AbortSignal }) => {
-  const { messages, model, apiKey, maxTokens, signal, enableContextCaching = false, includeReasoning = false } = opts
+const isPromptCacheFieldError = (errorData: any) => {
+  const msg = JSON.stringify(errorData || {}).toLowerCase()
+
+  return isCacheControlError(errorData) || msg.includes('prompt_cache_key') || msg.includes('prompt_cache_retention')
+}
+
+const isJsonSchemaParameterError = (errorData: any) => {
+  const msg = JSON.stringify(errorData || '')
+
+  return msg.includes('response_format') || msg.includes('json_schema') || msg.includes('schema') || msg.includes('text.format')
+}
+
+const rememberModelLacksCacheControl = (model: string) => {
+  modelsWithoutCacheControlSupport.value.add(model)
+  sessionStorage.setItem('modelsWithoutCacheControlSupport', JSON.stringify([...modelsWithoutCacheControlSupport.value]))
+}
+
+const rememberModelLacksReasoning = (model: string) => {
+  modelsWithoutReasoningSupport.value.add(model)
+  sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
+}
+
+const callOpenCodeGoTextRequest = async (opts: {
+  messages: any[]
+  model: string
+  apiKey: string
+  maxTokens: number
+  reasoningEffort?: string
+  enableContextCaching?: boolean
+  includeReasoning?: boolean
+  sessionId?: string
+  signal?: AbortSignal
+}) => {
+  const { messages, model, apiKey, maxTokens, signal, enableContextCaching = false, includeReasoning = false, sessionId } = opts
   let { reasoningEffort } = opts
+  const extraHeaders = openCodeGoExtraHeaders(model, sessionId)
 
   if (reasoningEffort && reasoningEffort !== 'default' && modelsWithoutReasoningSupport.value.has(model)) {
     reasoningEffort = undefined
   }
 
   if (isOpenCodeGoAnthropicModel(model)) {
-    const { requestBody, shouldAddCacheControl } = buildAnthropicRequestBody({ messages, maxTokens, model, enableContextCaching, reasoningEffort })
+    const { requestBody, shouldAddCacheControl } = buildAnthropicRequestBody({ messages, maxTokens, model, enableContextCaching, reasoningEffort, sessionId })
     const result = await sendOpenCodeGoAnthropicRequest(requestBody, apiKey, signal)
 
     if (!result.response.ok) {
       if (result.response.status === 400 && shouldAddCacheControl && isCacheControlError(result.errorData)) {
         console.warn(`Model ${model} does not support cache_control, remembering and retrying without it...`)
-        modelsWithoutCacheControlSupport.value.add(model)
-        sessionStorage.setItem('modelsWithoutCacheControlSupport', JSON.stringify([...modelsWithoutCacheControlSupport.value]))
-        const { requestBody: retryBody } = buildAnthropicRequestBody({ messages, maxTokens, model, enableContextCaching: false, reasoningEffort })
+        rememberModelLacksCacheControl(model)
+        const { requestBody: retryBody } = buildAnthropicRequestBody({ messages, maxTokens, model, enableContextCaching: false, reasoningEffort, sessionId })
         const retryResult = await sendOpenCodeGoAnthropicRequest(retryBody, apiKey, signal)
         if (!retryResult.response.ok) {
           throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
         }
+
         return await parseAnthropicTextResponse(retryResult.response, includeReasoning)
       }
 
       if (result.response.status === 400 && isReasoningParameterError(result.errorData)) {
         console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
-        modelsWithoutReasoningSupport.value.add(model)
-        sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
-        const { requestBody: retryBody } = buildAnthropicRequestBody({ messages, maxTokens, model, enableContextCaching })
+        rememberModelLacksReasoning(model)
+        const { requestBody: retryBody } = buildAnthropicRequestBody({ messages, maxTokens, model, enableContextCaching, sessionId })
         const retryResult = await sendOpenCodeGoAnthropicRequest(retryBody, apiKey, signal)
         if (!retryResult.response.ok) {
           throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
         }
+
         return await parseAnthropicTextResponse(retryResult.response, includeReasoning)
       }
 
@@ -267,26 +416,122 @@ const callOpenCodeGoTextRequest = async (opts: { messages: any[]; model: string;
     return await parseAnthropicTextResponse(result.response, includeReasoning)
   }
 
-  const requestBody = buildOpenAiCompatibleRequestBody({
-    messages,
-    maxTokens,
-    model,
-    reasoningEffort
-  })
+  if (isOpenCodeGoResponsesModel(model)) {
+    const requestBody = buildOpenCodeGoResponsesBody({
+      messages,
+      model,
+      maxTokens,
+      reasoningEffort,
+      enableContextCaching,
+      sessionId
+    })
+    const result = await sendOpenCodeGoResponsesRequest(requestBody, apiKey, signal, extraHeaders)
 
-  const result = await sendOpenCodeGoRequest(requestBody, apiKey, signal)
+    if (!result.response.ok) {
+      if (result.response.status === 400 && enableContextCaching && isPromptCacheFieldError(result.errorData)) {
+        console.warn(`Model ${model} rejected prompt cache fields, retrying without them...`)
+        rememberModelLacksCacheControl(model)
+        const retryBody = buildOpenCodeGoResponsesBody({
+          messages,
+          model,
+          maxTokens,
+          reasoningEffort,
+          enableContextCaching: false,
+          sessionId
+        })
+        const retryResult = await sendOpenCodeGoResponsesRequest(retryBody, apiKey, signal, extraHeaders)
+        if (!retryResult.response.ok) {
+          throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+        }
+
+        return await parseResponsesTextResponse(retryResult.response, includeReasoning)
+      }
+
+      if (result.response.status === 400 && isReasoningParameterError(result.errorData)) {
+        console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
+        rememberModelLacksReasoning(model)
+        const retryBody = buildOpenCodeGoResponsesBody({
+          messages,
+          model,
+          maxTokens,
+          enableContextCaching,
+          sessionId
+        })
+        const retryResult = await sendOpenCodeGoResponsesRequest(retryBody, apiKey, signal, extraHeaders)
+        if (!retryResult.response.ok) {
+          throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+        }
+
+        return await parseResponsesTextResponse(retryResult.response, includeReasoning)
+      }
+
+      throw new AIError(result.errorData?.error?.code ?? result.response.status, result.errorData?.error?.message ?? result.response.statusText ?? 'Unknown error')
+    }
+
+    return await parseResponsesTextResponse(result.response, includeReasoning)
+  }
+
+  const requestBody = withOpenCodeGoCompletionsCache(
+    buildOpenAiCompatibleRequestBody({
+      messages,
+      maxTokens,
+      model,
+      reasoningEffort
+    }),
+    { enableContextCaching, model, sessionId }
+  )
+
+  const result = await sendOpenCodeGoRequest(requestBody, apiKey, signal, extraHeaders)
 
   if (!result.response.ok) {
-    if (result.response.status === 400 && isReasoningParameterError(result.errorData)) {
-      console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
-      modelsWithoutReasoningSupport.value.add(model)
-      sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
+    if (result.response.status === 400 && enableContextCaching && isCacheControlError(result.errorData)) {
+      console.warn(`Model ${model} does not support cache_control, remembering and retrying without it...`)
+      rememberModelLacksCacheControl(model)
+      const retryRequestBody = withOpenCodeGoCompletionsCache(
+        buildOpenAiCompatibleRequestBody({
+          messages,
+          maxTokens,
+          model,
+          reasoningEffort
+        }),
+        { enableContextCaching: true, model, sessionId }
+      )
+      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal, extraHeaders)
+      if (!retryResult.response.ok) {
+        throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+      }
+
+      return await parseOpenAiCompatibleTextResponse(retryResult.response, includeReasoning)
+    }
+
+    if (result.response.status === 400 && enableContextCaching && isPromptCacheFieldError(result.errorData)) {
+      console.warn(`Model ${model} rejected prompt cache fields, retrying without them...`)
       const retryRequestBody = buildOpenAiCompatibleRequestBody({
         messages,
         maxTokens,
-        model
+        model,
+        reasoningEffort
       })
-      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal)
+      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal, extraHeaders)
+      if (!retryResult.response.ok) {
+        throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+      }
+
+      return await parseOpenAiCompatibleTextResponse(retryResult.response, includeReasoning)
+    }
+
+    if (result.response.status === 400 && isReasoningParameterError(result.errorData)) {
+      console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
+      rememberModelLacksReasoning(model)
+      const retryRequestBody = withOpenCodeGoCompletionsCache(
+        buildOpenAiCompatibleRequestBody({
+          messages,
+          maxTokens,
+          model
+        }),
+        { enableContextCaching, model, sessionId }
+      )
+      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal, extraHeaders)
 
       if (!retryResult.response.ok) {
         throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
@@ -576,8 +821,8 @@ export const callLocal = async (
   return takeOpenAiMessageContent(data, includeReasoning)
 }
 
-export const callOpenCodeGoSummarization = async (messages: any[], opts: { model: string; apiKey: string; maxTokens?: number; reasoningEffort?: string; enableContextCaching?: boolean; signal?: AbortSignal }) => {
-  const { model, apiKey, maxTokens = 16384, reasoningEffort, enableContextCaching, signal } = opts
+export const callOpenCodeGoSummarization = async (messages: any[], opts: { model: string; apiKey: string; maxTokens?: number; reasoningEffort?: string; enableContextCaching?: boolean; sessionId?: string; signal?: AbortSignal }) => {
+  const { model, apiKey, maxTokens = 16384, reasoningEffort, enableContextCaching, sessionId, signal } = opts
 
   return await callOpenCodeGoTextRequest({
     messages,
@@ -586,6 +831,7 @@ export const callOpenCodeGoSummarization = async (messages: any[], opts: { model
     maxTokens,
     reasoningEffort,
     enableContextCaching,
+    sessionId,
     signal
   })
 }
@@ -601,11 +847,13 @@ export const callOpenCodeGo = async (
     enableContextCaching?: boolean
     includeAnimReason?: boolean
     includeReasoning?: boolean
+    sessionId?: string
     signal?: AbortSignal
   }
 ) => {
-  const { model, apiKey, modeIsGame, maxTokens = 16384, signal, enableContextCaching = false, includeAnimReason = false, includeReasoning = false } = opts
+  const { model, apiKey, modeIsGame, maxTokens = 16384, signal, enableContextCaching = false, includeAnimReason = false, includeReasoning = false, sessionId } = opts
   let { reasoningEffort } = opts
+  const extraHeaders = openCodeGoExtraHeaders(model, sessionId)
 
   if (reasoningEffort && reasoningEffort !== 'default' && modelsWithoutReasoningSupport.value.has(model)) {
     reasoningEffort = undefined
@@ -620,6 +868,7 @@ export const callOpenCodeGo = async (
       reasoningEffort,
       enableContextCaching,
       includeReasoning,
+      sessionId,
       signal
     })
   }
@@ -633,45 +882,167 @@ export const callOpenCodeGo = async (
     return callWithoutJsonFormat()
   }
 
-  const requestBody = buildOpenAiCompatibleRequestBody({
-    messages,
-    maxTokens,
-    model,
-    modeIsGame,
-    reasoningEffort,
-    includeJsonSchema: true,
-    includeAnimReason
-  })
+  if (isOpenCodeGoResponsesModel(model)) {
+    const requestBody = buildOpenCodeGoResponsesBody({
+      messages,
+      model,
+      maxTokens,
+      reasoningEffort,
+      enableContextCaching,
+      sessionId,
+      includeJsonSchema: true,
+      modeIsGame,
+      includeAnimReason
+    })
+    const result = await sendOpenCodeGoResponsesRequest(requestBody, apiKey, signal, extraHeaders)
 
-  const result = await sendOpenCodeGoRequest(requestBody, apiKey, signal)
+    if (!result.response.ok) {
+      if (result.response.status === 400 && isJsonSchemaParameterError(result.errorData)) {
+        console.warn(`Model ${model} does not support json_schema response format, remembering and retrying without it...`)
+        modelsWithoutJsonSupport.value.add(model)
+        sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+
+        return callWithoutJsonFormat()
+      }
+
+      if (result.response.status === 400 && enableContextCaching && isPromptCacheFieldError(result.errorData)) {
+        console.warn(`Model ${model} rejected prompt cache fields, retrying without them...`)
+        rememberModelLacksCacheControl(model)
+        const retryBody = buildOpenCodeGoResponsesBody({
+          messages,
+          model,
+          maxTokens,
+          reasoningEffort,
+          enableContextCaching: false,
+          sessionId,
+          includeJsonSchema: true,
+          modeIsGame,
+          includeAnimReason
+        })
+        const retryResult = await sendOpenCodeGoResponsesRequest(retryBody, apiKey, signal, extraHeaders)
+        if (!retryResult.response.ok) {
+          if (retryResult.response.status === 400 && isJsonSchemaParameterError(retryResult.errorData)) {
+            modelsWithoutJsonSupport.value.add(model)
+            sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+
+            return callWithoutJsonFormat()
+          }
+          throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+        }
+
+        return await parseResponsesTextResponse(retryResult.response, includeReasoning)
+      }
+
+      if (result.response.status === 400 && isReasoningParameterError(result.errorData)) {
+        console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
+        rememberModelLacksReasoning(model)
+        const retryBody = buildOpenCodeGoResponsesBody({
+          messages,
+          model,
+          maxTokens,
+          enableContextCaching,
+          sessionId,
+          includeJsonSchema: true,
+          modeIsGame,
+          includeAnimReason
+        })
+        const retryResult = await sendOpenCodeGoResponsesRequest(retryBody, apiKey, signal, extraHeaders)
+        if (!retryResult.response.ok) {
+          if (retryResult.response.status === 400 && isJsonSchemaParameterError(retryResult.errorData)) {
+            modelsWithoutJsonSupport.value.add(model)
+            sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+
+            return callWithoutJsonFormat()
+          }
+          throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+        }
+
+        return await parseResponsesTextResponse(retryResult.response, includeReasoning)
+      }
+
+      throw new AIError(result.errorData?.error?.code ?? result.response.status, result.errorData?.error?.message ?? result.response.statusText ?? 'Unknown error')
+    }
+
+    return await parseResponsesTextResponse(result.response, includeReasoning)
+  }
+
+  const requestBody = withOpenCodeGoCompletionsCache(
+    buildOpenAiCompatibleRequestBody({
+      messages,
+      maxTokens,
+      model,
+      modeIsGame,
+      reasoningEffort,
+      includeJsonSchema: true,
+      includeAnimReason
+    }),
+    { enableContextCaching, model, sessionId }
+  )
+
+  const result = await sendOpenCodeGoRequest(requestBody, apiKey, signal, extraHeaders)
 
   if (!result.response.ok) {
-    if (result.response.status === 400 && (JSON.stringify(result.errorData).includes('response_format') || JSON.stringify(result.errorData).includes('json_schema') || JSON.stringify(result.errorData).includes('schema'))) {
+    if (result.response.status === 400 && isJsonSchemaParameterError(result.errorData)) {
       console.warn(`Model ${model} does not support json_schema response format, remembering and retrying without it...`)
       modelsWithoutJsonSupport.value.add(model)
       sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+
       return callWithoutJsonFormat()
+    }
+
+    if (result.response.status === 400 && enableContextCaching && isCacheControlError(result.errorData)) {
+      console.warn(`Model ${model} does not support cache_control, remembering and retrying without it...`)
+      rememberModelLacksCacheControl(model)
+      const retryRequestBody = withOpenCodeGoCompletionsCache(
+        buildOpenAiCompatibleRequestBody({
+          messages,
+          maxTokens,
+          model,
+          modeIsGame,
+          reasoningEffort,
+          includeJsonSchema: true,
+          includeAnimReason
+        }),
+        { enableContextCaching: true, model, sessionId }
+      )
+      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal, extraHeaders)
+      if (!retryResult.response.ok) {
+        if (retryResult.response.status === 400 && isJsonSchemaParameterError(retryResult.errorData)) {
+          modelsWithoutJsonSupport.value.add(model)
+          sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+
+          return callWithoutJsonFormat()
+        }
+        throw new AIError(retryResult.errorData?.error?.code ?? retryResult.response.status, retryResult.errorData?.error?.message ?? retryResult.response.statusText ?? 'Unknown error')
+      }
+
+      const retryData = await retryResult.response.json()
+
+      return takeOpenAiMessageContent(retryData, includeReasoning)
     }
 
     if (result.response.status === 400 && isReasoningParameterError(result.errorData)) {
       console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
-      modelsWithoutReasoningSupport.value.add(model)
-      sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
-      const retryRequestBody = buildOpenAiCompatibleRequestBody({
-        messages,
-        maxTokens,
-        model,
-        modeIsGame,
-        includeJsonSchema: true,
-        includeAnimReason
-      })
-      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal)
+      rememberModelLacksReasoning(model)
+      const retryRequestBody = withOpenCodeGoCompletionsCache(
+        buildOpenAiCompatibleRequestBody({
+          messages,
+          maxTokens,
+          model,
+          modeIsGame,
+          includeJsonSchema: true,
+          includeAnimReason
+        }),
+        { enableContextCaching, model, sessionId }
+      )
+      const retryResult = await sendOpenCodeGoRequest(retryRequestBody, apiKey, signal, extraHeaders)
 
       if (!retryResult.response.ok) {
-        if (retryResult.response.status === 400 && (JSON.stringify(retryResult.errorData).includes('response_format') || JSON.stringify(retryResult.errorData).includes('json_schema') || JSON.stringify(retryResult.errorData).includes('schema'))) {
+        if (retryResult.response.status === 400 && isJsonSchemaParameterError(retryResult.errorData)) {
           console.warn(`Model ${model} does not support json_schema response format after retrying without reasoning, remembering and retrying without it...`)
           modelsWithoutJsonSupport.value.add(model)
           sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+
           return callWithoutJsonFormat()
         }
 
@@ -705,54 +1076,39 @@ export const callOpenRouter = async (
     reasoningEffort?: string
     includeAnimReason?: boolean
     includeReasoning?: boolean
+    sessionId?: string
     signal?: AbortSignal
   }
 ) => {
-  const { model, apiKey, enableContextCaching, allowWebSearchFallback, modeIsGame, enableWebSearch = false, prompts, reasoningEffort, includeAnimReason = false, includeReasoning = false, signal } = opts
+  const { model, apiKey, enableContextCaching, allowWebSearchFallback, modeIsGame, enableWebSearch = false, prompts, reasoningEffort, includeAnimReason = false, includeReasoning = false, sessionId, signal } = opts
 
   let processedMessages = messages
 
-  if (enableContextCaching) {
-    processedMessages = messages.map((m) => ({ ...m }))
-
-    if (processedMessages.length > 0 && processedMessages[0].role === 'system') {
-      const systemContent = processedMessages[0].content
-      processedMessages[0] = {
-        ...processedMessages[0],
-        content: [
-          {
-            type: 'text',
-            text: systemContent,
-            cache_control: { type: 'ephemeral' }
-          }
-        ]
-      }
-    }
-
-    if (processedMessages.length >= 2) {
-      const lastHistoryIndex = processedMessages.length - 2
-      if (lastHistoryIndex > 0 || (lastHistoryIndex === 0 && processedMessages[0].role !== 'system')) {
-        const msg = processedMessages[lastHistoryIndex]
-        if (typeof msg.content === 'string') {
-          processedMessages[lastHistoryIndex] = {
-            ...msg,
-            content: [
-              {
-                type: 'text',
-                text: msg.content,
-                cache_control: { type: 'ephemeral' }
-              }
-            ]
-          }
-        }
-      }
-    }
+  if (enableContextCaching && modelUsesExplicitCacheControl(model)) {
+    processedMessages = applyExplicitCacheControl(messages)
   }
 
   const jsonEnforcement = includeAnimReason && prompts.systemPrompt?.debugAnimReasonInstruction
     ? `${prompts.reminders.jsonEnforcement}\n${prompts.systemPrompt.debugAnimReasonInstruction}`
     : prompts.reminders.jsonEnforcement
   const messagesWithEnforcement = [...processedMessages, { role: 'user', content: jsonEnforcement }]
+
+  const openRouterHeaders: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    'HTTP-Referer': window.location.href,
+    'X-Title': 'Nikke DB Story Gen',
+    'Content-Type': 'application/json'
+  }
+  if (sessionId) {
+    openRouterHeaders['x-session-id'] = sessionId
+    attachGrokCacheAffinityHeaders(openRouterHeaders, model, sessionId)
+  }
+
+  const attachSession = (body: any) => {
+    if (sessionId) body.session_id = sessionId
+
+    return body
+  }
 
   const buildWebPlugin = () => {
     if (!enableWebSearch) return undefined
@@ -779,14 +1135,12 @@ export const callOpenRouter = async (
       requestBody.plugins = webPlugin
     }
 
+    attachSession(requestBody)
+    logLlmExchange('OpenRouter', requestBody)
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': window.location.href,
-        'X-Title': 'Nikke DB Story Gen',
-        'Content-Type': 'application/json'
-      },
+      headers: openRouterHeaders,
       body: JSON.stringify(requestBody),
       signal
     })
@@ -844,14 +1198,12 @@ export const callOpenRouter = async (
 
   if (plugins.length > 0) requestBody.plugins = plugins
 
+  attachSession(requestBody)
+  logLlmExchange('OpenRouter', requestBody)
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': window.location.href,
-      'X-Title': 'Nikke DB Story Gen',
-      'Content-Type': 'application/json'
-    },
+    headers: openRouterHeaders,
     body: JSON.stringify(requestBody),
     signal
   })
@@ -901,6 +1253,7 @@ export const summarizeChunk = async (
     reasoningEffort?: string
     signal?: AbortSignal
     existingSummary?: string
+    sessionId?: string
   }
 ) => {
   if (messages.length === 0) return ''
@@ -924,7 +1277,7 @@ export const summarizeChunk = async (
   if (opts.apiProvider === 'gemini') {
     summary = await callGeminiSummarization(msgs, opts.apiKey, opts.model, opts.signal)
   } else if (opts.apiProvider === 'opencode-go') {
-    summary = await callOpenCodeGoSummarization(msgs, { model: opts.model, apiKey: opts.apiKey, reasoningEffort: opts.reasoningEffort, enableContextCaching: opts.enableContextCaching, signal: opts.signal })
+    summary = await callOpenCodeGoSummarization(msgs, { model: opts.model, apiKey: opts.apiKey, reasoningEffort: opts.reasoningEffort, enableContextCaching: opts.enableContextCaching, sessionId: opts.sessionId, signal: opts.signal })
   } else if (opts.apiProvider === 'openrouter') {
     summary = await callOpenRouterSummarization(msgs, opts.apiKey, opts.model, opts.signal)
   } else if (opts.apiProvider === 'pollinations') {
@@ -950,6 +1303,7 @@ export const compactSummary = async (
     prompts: any
     enableContextCaching?: boolean
     reasoningEffort?: string
+    sessionId?: string
     signal?: AbortSignal
   }
 ) => {
@@ -965,7 +1319,7 @@ export const compactSummary = async (
   if (opts.apiProvider === 'gemini') {
     summary = await callGeminiSummarization(msgs, opts.apiKey, opts.model, opts.signal)
   } else if (opts.apiProvider === 'opencode-go') {
-    summary = await callOpenCodeGoSummarization(msgs, { model: opts.model, apiKey: opts.apiKey, reasoningEffort: opts.reasoningEffort, enableContextCaching: opts.enableContextCaching, signal: opts.signal })
+    summary = await callOpenCodeGoSummarization(msgs, { model: opts.model, apiKey: opts.apiKey, reasoningEffort: opts.reasoningEffort, enableContextCaching: opts.enableContextCaching, sessionId: opts.sessionId, signal: opts.signal })
   } else if (opts.apiProvider === 'openrouter') {
     summary = await callOpenRouterSummarization(msgs, opts.apiKey, opts.model, opts.signal)
   } else if (opts.apiProvider === 'pollinations') {

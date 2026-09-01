@@ -606,9 +606,9 @@
                   </n-icon>
                 </template>
                 <div>
-                  Adds explicit caching headers for supported models (Claude, Gemini) on OpenRouter and Pollinations.<br /><br />
-                  Significantly reduces costs for long conversations by caching the history.<br />
-                  Other models (OpenAI, DeepSeek) cache automatically without this setting.
+                  Pins a stable system-prompt prefix so implicit caches (Grok, DeepSeek, OpenAI) can hit. Grok also sends a conversation id so requests stay on the same cache server.<br /><br />
+                  Adds explicit <code>cache_control</code> breakpoints for Claude, Gemini, Qwen, Nova, and MiniMax. OpenCode Go Anthropic-style models (MiniMax, Qwen) use <code>/messages</code>; Grok 4.6 uses <code>/responses</code> with <code>prompt_cache_key</code> — these are different paths.<br /><br />
+                  Turn-local data (current character, animations, reminders) is appended after the conversation instead of rewriting the system prompt each turn.
                 </div>
               </n-popover>
             </template>
@@ -985,6 +985,9 @@ import { marked } from 'marked'
 import { sanitizeActions, parseFallback, parseAIResponse, isWholeWordPresent, formatChoiceAsUserTurn, filterEchoedUserChoiceDialogueInGameMode, stripChoicesWhenNotGameMode, ensureGameModeChoicesFallback, calculateYapDuration, replayMessage as replayMessageUtil, getHonorific, createTypewriterController, getEffectiveCharacterProfiles, logDebug, generateSystemPrompt as generateSystemPromptUtil, injectAnimReasonIntoJsonTemplate } from '@/utils/chatUtils'
 import { executeAiTurn } from '@/utils/chatRetryUtils'
 import { dispatchToProvider, buildFirstTurnHonorificsReminder, injectFirstTurnReminder, type ProviderCallFunctions } from '@/utils/chatAiCaller'
+import { appendVolatileContextToOutgoingMessages, buildVolatileTurnContext } from '@/utils/contextCacheUtils'
+import { resolveRelevantLocations, getFilteredLocationsForAI } from '@/utils/storyLocationUtils'
+import { getCurrentBackgroundPromptState } from '@/utils/backgroundUtils'
 import { useStoryReminders } from '@/composables/useStoryReminders'
 import { usePresets } from '@/composables/usePresets'
 import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
@@ -1050,6 +1053,9 @@ watch(selectedPlayerCharacterName, (name) => {
 
 const reasoningEffortOptions = computed(() => getReasoningEffortOptions(apiProvider.value))
 const enableContextCaching = ref(true)
+const llmSessionId = ref(typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `session-${Date.now()}`)
+const pinnedSystemPrompt = ref<string | null>(null)
+const pinnedProfileKeys = ref<string[]>([])
 const debugModeEnabled = ref(import.meta.env.DEV && localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === 'true')
 const playbackMode = ref('manual')
 const godModeEnabled = ref(localStorage.getItem('nikke_god_mode_enabled') === 'true')
@@ -2835,16 +2841,54 @@ const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean
     needsJsonReminder.value = false
   }
 
-  let contextMsg = `Current Character: ${market.live2d.current_id}.\n\nAvailable Animations:\n${getFormattedAnimationsForContext()}`
+  const { historyToSend } = await runTumblingWindowSummarization('', `[${logTag}]`)
 
-  const { contextMsg: updatedContextMsg, historyToSend } = await runTumblingWindowSummarization(contextMsg, `[${logTag}]`)
-  contextMsg = updatedContextMsg
+  const relevantLocations = lowContextMode.value
+    ? []
+    : resolveRelevantLocations({
+      profiles: effectiveCharacterProfiles.value,
+      currentUserPrompt: lastPrompt.value,
+      chatHistory: chatHistory.value,
+      isWholeWordPresent
+    })
+  const locationsText = relevantLocations.length > 0
+    ? `${prompts.systemPrompt.knownLocations}\n${JSON.stringify(getFilteredLocationsForAI(relevantLocations), null, 2)}`
+    : ''
+
+  const isBgReady = market.live2d.backgroundImagesEnabled && market.live2d.backgroundImageMap.size > 0
+  const currentBackground = isBgReady
+    ? getCurrentBackgroundPromptState({
+      currentBackgroundFilename: market.live2d.currentBackground,
+      availableFilenames: [...market.live2d.backgroundImageMap.keys()]
+    })
+    : undefined
+  const currentBackgroundText = currentBackground
+    ? `Current Background Scene:\n${JSON.stringify(currentBackground, null, 2)}`
+    : ''
 
   const reminders = getUserReminders()
-  const fullSystemPrompt = `${systemPrompt}\n\n${contextMsg}${retryInstruction}${reminders}`
+  const newProfileNames = Object.keys(effectiveCharacterProfiles.value).filter((name) => !pinnedProfileKeys.value.includes(name))
+  let newCharacterProfiles = ''
+  if (pinnedSystemPrompt.value && newProfileNames.length > 0) {
+    newCharacterProfiles = JSON.stringify(
+      Object.fromEntries(newProfileNames.map((name) => [name, effectiveCharacterProfiles.value[name]])),
+      null,
+      2
+    )
+  }
+  const volatileText = buildVolatileTurnContext({
+    currentCharacterId: market.live2d.current_id,
+    animationsText: getFormattedAnimationsForContext(),
+    locationsText,
+    currentBackgroundText,
+    storySummary: storySummary.value,
+    retryInstruction,
+    reminders,
+    newCharacterProfiles
+  })
 
   let messages: any[] = [
-    { role: 'system', content: fullSystemPrompt },
+    { role: 'system', content: systemPrompt },
     ...historyToSend.map((m) => ({ role: m.role, content: m.content }))
   ]
 
@@ -2857,6 +2901,7 @@ const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean
     prompts.reminders as Record<string, string>
   )
   messages = injectFirstTurnReminder(messages, firstTurnReminder)
+  messages = appendVolatileContextToOutgoingMessages(messages, volatileText)
 
   return await dispatchToProvider(apiProvider.value, messages, enableWebSearch, getProviderCalls())
 }
@@ -2954,7 +2999,7 @@ const wrappedSearchForCharacters = async (characterNames: string[]) => {
 
 const generateSystemPrompt = (enableWebSearch: boolean) => {
   const isBgReady = market.live2d.backgroundImagesEnabled && market.live2d.backgroundImageMap.size > 0
-  return generateSystemPromptUtil({
+  const generated = generateSystemPromptUtil({
     enableWebSearch,
     effectiveCharacterProfiles: effectiveCharacterProfiles.value,
     rosterRows: rosterRows.value,
@@ -2971,8 +3016,23 @@ const generateSystemPrompt = (enableWebSearch: boolean) => {
     backgroundImagesEnabled: isBgReady,
     backgroundImageMap: isBgReady ? market.live2d.backgroundImageMap : undefined,
     currentBackgroundFilename: isBgReady ? market.live2d.currentBackground : undefined,
-    debugMode: isDebugModeActive.value
+    debugMode: isDebugModeActive.value,
+    pinCachePrefix: enableContextCaching.value
   })
+
+  if (!enableContextCaching.value) {
+    pinnedSystemPrompt.value = null
+    pinnedProfileKeys.value = []
+
+    return generated
+  }
+
+  if (!pinnedSystemPrompt.value) {
+    pinnedSystemPrompt.value = generated
+    pinnedProfileKeys.value = Object.keys(effectiveCharacterProfiles.value)
+  }
+
+  return pinnedSystemPrompt.value
 }
 
 const callOpenRouter = async (messages: any[], searchUrl?: string, enableWebSearch: boolean = false) => {
@@ -2988,6 +3048,7 @@ const callOpenRouter = async (messages: any[], searchUrl?: string, enableWebSear
     reasoningEffort: reasoningEffort.value,
     includeAnimReason: isDebugModeActive.value,
     includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
+    sessionId: llmSessionId.value,
     signal: activeAbortController?.signal
   })
 }
@@ -3028,6 +3089,7 @@ const callOpenCodeGo = async (messages: any[]) => {
     enableContextCaching: enableContextCaching.value,
     includeAnimReason: isDebugModeActive.value,
     includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
+    sessionId: llmSessionId.value,
     signal: activeAbortController?.signal
   })
 }
@@ -3814,6 +3876,9 @@ const resetSession = () => {
     selectedMessageIndex.value = null
     nikkeOverlayVisible.value = false
     rosterRows.value = []
+    llmSessionId.value = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `session-${Date.now()}`
+    pinnedSystemPrompt.value = null
+    pinnedProfileKeys.value = []
     ensureValidSelectedPlayerCharacter()
   }
 }
@@ -3849,6 +3914,7 @@ const summarizeChunk = async (messages: { role: string; content: string }[]): Pr
       prompts,
       enableContextCaching: enableContextCaching.value,
       reasoningEffort: reasoningEffort.value,
+      sessionId: llmSessionId.value,
       signal: activeAbortController?.signal,
       existingSummary: storySummary.value
     })
@@ -3885,6 +3951,7 @@ const performCompaction = async (): Promise<boolean> => {
       prompts,
       enableContextCaching: enableContextCaching.value,
       reasoningEffort: reasoningEffort.value,
+      sessionId: llmSessionId.value,
       signal: activeAbortController?.signal
     })
 

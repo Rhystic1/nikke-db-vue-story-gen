@@ -1427,6 +1427,8 @@ export type SystemPromptParams = {
   backgroundImageMap?: Map<string, File>
   currentBackgroundFilename?: string
   debugMode?: boolean
+  /** When true, omit turn-local inputs (current speaker, recent chat, current background) so the system prefix can be cached. */
+  pinCachePrefix?: boolean
 }
 
 /**
@@ -1434,7 +1436,12 @@ export type SystemPromptParams = {
  * Pure function — no Vue reactivity, no side effects.
  */
 export const generateSystemPrompt = (params: SystemPromptParams): string => {
-  const { enableWebSearch, effectiveCharacterProfiles: originalProfiles, rosterRows, currentLive2dId, mode, godModeEnabled, realisticModeEnabled, lowContextMode, characterCatalog, currentUserPrompt, chatHistory, playerCharacterName = 'Commander', customPlayerCharacterActive = false } = params
+  const pinCachePrefix = !!params.pinCachePrefix
+  const { enableWebSearch, effectiveCharacterProfiles: originalProfiles, rosterRows, mode, godModeEnabled, realisticModeEnabled, lowContextMode, characterCatalog, playerCharacterName = 'Commander', customPlayerCharacterActive = false } = params
+  const currentLive2dId = pinCachePrefix ? '' : params.currentLive2dId
+  const currentUserPrompt = pinCachePrefix ? '' : params.currentUserPrompt
+  const chatHistory = pinCachePrefix ? [] : params.chatHistory
+  const currentBackgroundFilename = pinCachePrefix ? undefined : params.currentBackgroundFilename
 
   let profiles = originalProfiles
   if (!customPlayerCharacterActive && mode !== 'story') {
@@ -1645,10 +1652,10 @@ export const generateSystemPrompt = (params: SystemPromptParams): string => {
     const availableScenes = getBackgroundPromptScenes({
       availableFilenames,
       relevantLocations: relevantLocationNames,
-      currentBackgroundFilename: params.currentBackgroundFilename
+      currentBackgroundFilename
     })
     const currentBackground = getCurrentBackgroundPromptState({
-      currentBackgroundFilename: params.currentBackgroundFilename,
+      currentBackgroundFilename,
       availableFilenames
     })
 
