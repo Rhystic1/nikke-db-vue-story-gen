@@ -59,6 +59,42 @@ export function takeOpenAiMessageContent(data: any, includeReasoning = false): s
   return data?.choices?.[0]?.message?.content
 }
 
+export function extractResponsesReasoning(data: any): string | undefined {
+  const parts: string[] = []
+  for (const item of data?.output || []) {
+    if (item?.type !== 'reasoning') continue
+    if (typeof item.summary === 'string' && item.summary.trim()) parts.push(item.summary)
+    for (const c of item.content || []) {
+      if (typeof c?.text === 'string' && c.text.trim()) parts.push(c.text)
+    }
+  }
+  if (parts.length) return parts.join('\n')
+  if (typeof data?.reasoning === 'string' && data.reasoning.trim()) return data.reasoning
+
+  return extractOpenAiReasoning(data)
+}
+
+export function takeResponsesOutputText(data: any, includeReasoning = false): string {
+  if (includeReasoning) {
+    captureModelReasoning(extractResponsesReasoning(data))
+  }
+  logLlmExchange('openai-responses', undefined, data)
+  if (typeof data?.output_text === 'string' && data.output_text) {
+    return data.output_text
+  }
+  const parts: string[] = []
+  for (const item of data?.output || []) {
+    if (item?.type !== 'message') continue
+    for (const c of item.content || []) {
+      if ((c?.type === 'output_text' || c?.type === 'text') && typeof c.text === 'string') {
+        parts.push(c.text)
+      }
+    }
+  }
+
+  return parts.join('')
+}
+
 export function extractAnthropicTextAndReasoning(data: any): { content: string; reasoning?: string } {
   const blocks = Array.isArray(data?.content) ? data.content : []
   const thinking = blocks

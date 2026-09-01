@@ -606,9 +606,9 @@
                   </n-icon>
                 </template>
                 <div>
-                  Pins a stable system-prompt prefix so implicit caches (DeepSeek, OpenAI) can hit, and adds explicit <code>cache_control</code> breakpoints for Claude, Gemini, Qwen, and Nova.<br /><br />
-                  Turn-local data (current character, animations, reminders) is appended after the conversation instead of rewriting the system prompt each turn.<br /><br />
-                  Significantly reduces costs for long conversations. DeepSeek-class models cache automatically from a matching prefix and do not need extra headers.
+                  Pins a stable system-prompt prefix so implicit caches (Grok, DeepSeek, OpenAI) can hit. Grok also sends a conversation id so requests stay on the same cache server.<br /><br />
+                  Adds explicit <code>cache_control</code> breakpoints for Claude, Gemini, Qwen, Nova, and MiniMax. OpenCode Go Anthropic-style models (MiniMax, Qwen) use <code>/messages</code>; Grok 4.6 uses <code>/responses</code> with <code>prompt_cache_key</code> — these are different paths.<br /><br />
+                  Turn-local data (current character, animations, reminders) is appended after the conversation instead of rewriting the system prompt each turn.
                 </div>
               </n-popover>
             </template>
@@ -3064,6 +3064,7 @@ const callOpenCodeGo = async (messages: any[]) => {
     enableContextCaching: enableContextCaching.value,
     includeAnimReason: isDebugModeActive.value,
     includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
+    sessionId: llmSessionId.value,
     signal: activeAbortController?.signal
   })
 }
@@ -3886,6 +3887,7 @@ const summarizeChunk = async (messages: { role: string; content: string }[]): Pr
       prompts,
       enableContextCaching: enableContextCaching.value,
       reasoningEffort: reasoningEffort.value,
+      sessionId: llmSessionId.value,
       signal: activeAbortController?.signal,
       existingSummary: storySummary.value
     })
@@ -3922,6 +3924,7 @@ const performCompaction = async (): Promise<boolean> => {
       prompts,
       enableContextCaching: enableContextCaching.value,
       reasoningEffort: reasoningEffort.value,
+      sessionId: llmSessionId.value,
       signal: activeAbortController?.signal
     })
 
