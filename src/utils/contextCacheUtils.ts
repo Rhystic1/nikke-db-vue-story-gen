@@ -281,12 +281,31 @@ export const logLlmExchange = (provider: string, requestBody?: any, responseData
   }
   if (typeof window !== 'undefined') {
     const bucket = ((window as any).__llmExchanges ||= [])
+    const messages = requestBody?.messages || requestBody?.input
+    const systemMsg = Array.isArray(messages) ? messages.find((m: any) => m?.role === 'system') : undefined
+    const systemText = typeof systemMsg?.content === 'string'
+      ? systemMsg.content
+      : typeof requestBody?.instructions === 'string'
+        ? requestBody.instructions
+        : ''
+    const lastMsg = Array.isArray(messages) && messages.length ? messages[messages.length - 1] : undefined
+    const lastText = typeof lastMsg?.content === 'string' ? lastMsg.content : ''
     bucket.push({
       ts: Date.now(),
       provider,
       hasRequest: requestBody !== undefined,
       hasResponse: responseData !== undefined,
-      usage: usage || null
+      usage: usage || null,
+      requestSummary: requestBody
+        ? {
+            model: requestBody.model,
+            sessionId: requestBody.session_id || requestBody.prompt_cache_key || null,
+            messageCount: Array.isArray(messages) ? messages.length : null,
+            systemChars: systemText ? systemText.length : 0,
+            lastUserHasTurnContext: lastText.includes('TURN CONTEXT'),
+            hasJsonSchema: !!(requestBody.response_format || requestBody.text?.format)
+          }
+        : null
     })
   }
 }
@@ -299,6 +318,7 @@ export const buildVolatileTurnContext = (parts: {
   storySummary?: string
   retryInstruction?: string
   reminders?: string
+  newCharacterProfiles?: string
 }): string => {
   const blocks: string[] = []
   blocks.push('--- TURN CONTEXT (not story history; keep this after the conversation) ---')
@@ -320,6 +340,9 @@ export const buildVolatileTurnContext = (parts: {
   }
   if (parts.reminders && parts.reminders.trim()) {
     blocks.push(parts.reminders.trim())
+  }
+  if (parts.newCharacterProfiles && parts.newCharacterProfiles.trim()) {
+    blocks.push(`NEW CHARACTER PROFILES (loaded after the cached system prefix):\n${parts.newCharacterProfiles.trim()}`)
   }
 
   return blocks.join('\n\n')

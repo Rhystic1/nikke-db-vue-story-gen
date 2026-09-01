@@ -1054,6 +1054,8 @@ watch(selectedPlayerCharacterName, (name) => {
 const reasoningEffortOptions = computed(() => getReasoningEffortOptions(apiProvider.value))
 const enableContextCaching = ref(true)
 const llmSessionId = ref(typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `session-${Date.now()}`)
+const pinnedSystemPrompt = ref<string | null>(null)
+const pinnedProfileKeys = ref<string[]>([])
 const debugModeEnabled = ref(import.meta.env.DEV && localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === 'true')
 const playbackMode = ref('manual')
 const godModeEnabled = ref(localStorage.getItem('nikke_god_mode_enabled') === 'true')
@@ -2865,6 +2867,15 @@ const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean
     : ''
 
   const reminders = getUserReminders()
+  const newProfileNames = Object.keys(effectiveCharacterProfiles.value).filter((name) => !pinnedProfileKeys.value.includes(name))
+  let newCharacterProfiles = ''
+  if (pinnedSystemPrompt.value && newProfileNames.length > 0) {
+    newCharacterProfiles = JSON.stringify(
+      Object.fromEntries(newProfileNames.map((name) => [name, effectiveCharacterProfiles.value[name]])),
+      null,
+      2
+    )
+  }
   const volatileText = buildVolatileTurnContext({
     currentCharacterId: market.live2d.current_id,
     animationsText: getFormattedAnimationsForContext(),
@@ -2872,7 +2883,8 @@ const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean
     currentBackgroundText,
     storySummary: storySummary.value,
     retryInstruction,
-    reminders
+    reminders,
+    newCharacterProfiles
   })
 
   let messages: any[] = [
@@ -2987,8 +2999,7 @@ const wrappedSearchForCharacters = async (characterNames: string[]) => {
 
 const generateSystemPrompt = (enableWebSearch: boolean) => {
   const isBgReady = market.live2d.backgroundImagesEnabled && market.live2d.backgroundImageMap.size > 0
-
-  return generateSystemPromptUtil({
+  const generated = generateSystemPromptUtil({
     enableWebSearch,
     effectiveCharacterProfiles: effectiveCharacterProfiles.value,
     rosterRows: rosterRows.value,
@@ -3006,8 +3017,22 @@ const generateSystemPrompt = (enableWebSearch: boolean) => {
     backgroundImageMap: isBgReady ? market.live2d.backgroundImageMap : undefined,
     currentBackgroundFilename: isBgReady ? market.live2d.currentBackground : undefined,
     debugMode: isDebugModeActive.value,
-    pinCachePrefix: true
+    pinCachePrefix: enableContextCaching.value
   })
+
+  if (!enableContextCaching.value) {
+    pinnedSystemPrompt.value = null
+    pinnedProfileKeys.value = []
+
+    return generated
+  }
+
+  if (!pinnedSystemPrompt.value) {
+    pinnedSystemPrompt.value = generated
+    pinnedProfileKeys.value = Object.keys(effectiveCharacterProfiles.value)
+  }
+
+  return pinnedSystemPrompt.value
 }
 
 const callOpenRouter = async (messages: any[], searchUrl?: string, enableWebSearch: boolean = false) => {
@@ -3852,6 +3877,8 @@ const resetSession = () => {
     nikkeOverlayVisible.value = false
     rosterRows.value = []
     llmSessionId.value = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `session-${Date.now()}`
+    pinnedSystemPrompt.value = null
+    pinnedProfileKeys.value = []
     ensureValidSelectedPlayerCharacter()
   }
 }

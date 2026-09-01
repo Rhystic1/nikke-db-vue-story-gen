@@ -247,4 +247,14 @@ describe('buildVolatileTurnContext', () => {
     expect(text).toContain('Available Animations')
     expect(text).toContain('PREVIOUS STORY SUMMARY')
   })
+
+  it('puts newly loaded profiles after the cached prefix', () => {
+    const text = buildVolatileTurnContext({
+      currentCharacterId: 'c351',
+      newCharacterProfiles: '{"Crown":{"id":"c100"}}'
+    })
+
+    expect(text).toContain('NEW CHARACTER PROFILES')
+    expect(text).toContain('Crown')
+  })
 })
