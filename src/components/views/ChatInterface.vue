@@ -991,7 +991,7 @@ import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
 import { formatBackgroundFolderLoadFeedback, resolveAiBackgroundSelection } from '@/utils/storyBackgroundUtils'
 import { ttsEnabled, ttsEndpoint, ttsProvider, gptSovitsEndpoint, gptSovitsBasePath, chatterboxEndpoint, ttsProviderOptions, playTTS } from '@/utils/ttsUtils'
 import { allowWebSearchFallback, usesWikiFetch, usesPollinationsAutoFallback, webSearchFallbackHelpText, searchForCharacters, searchForCharactersWithNativeSearch, searchForCharactersViaWikiFetch, checkForSearchRequest as checkForSearchRequestUtil } from '@/utils/aiWebSearchUtils'
-import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, formatAnimationsForContext, getReasoningEffortOptions, handleTumblingWindowSummarization } from '@/utils/llmUtils'
+import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, formatAnimationsForContext, getReasoningEffortOptions, handleTumblingWindowSummarization, rotateOpenCodeGoSessionId } from '@/utils/llmUtils'
 import { captureSpineCanvasPlacement, restoreSpineCanvasPlacement } from '@/utils/spineUtils'
 import { isInteractiveOverlayTarget, isSpineCanvasAtPoint, getEventPoint } from '@/utils/overlayUtils'
 import { initChatLayout, createDragHandlers, createResizeHandlers, createViewportHandlers } from '@/utils/windowUtils'
@@ -3793,6 +3793,7 @@ const resetSession = () => {
 
   if (confirmed) {
     clearGameChoiceState()
+    rotateOpenCodeGoSessionId()
 
     // Resetting the story should not keep the previous visual scene pinned to the
     // page background, so clear any active blob URL even if the pack stays loaded.

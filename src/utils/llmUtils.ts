@@ -4,11 +4,11 @@
 import { AIError, logDebug } from '@/utils/chatUtils'
 import { callGeminiSummarization } from '@/utils/geminiUtils'
 import { callPollinationsSummarization } from '@/utils/pollinationsUtils'
-import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, modelsWithoutCacheControlSupport, buildStoryResponseSchema } from '@/utils/providerConfigUtils'
+import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, modelsWithoutCacheControlSupport, buildStoryResponseSchema, buildOpenCodeGoHeaders } from '@/utils/providerConfigUtils'
 import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
 
 // Re-exports from extracted modules
-export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, providerOptions, tokenUsageOptions, getReasoningEffortOptions, buildStoryResponseSchema } from '@/utils/providerConfigUtils'
+export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, providerOptions, tokenUsageOptions, getReasoningEffortOptions, buildStoryResponseSchema, rotateOpenCodeGoSessionId } from '@/utils/providerConfigUtils'
 export { callPollinationsSummarization, callPollinations, callPollinationsWithoutJson } from '@/utils/pollinationsUtils'
 export { getFilteredAnimations, enrichActionsWithAnimations, formatAnimationsForContext } from '@/utils/animationEnrichmentUtils'
 export { handleTumblingWindowSummarization, type TumblingWindowState, type TumblingWindowCallbacks, type TumblingWindowResult } from '@/utils/tumblingWindowUtils'
@@ -159,23 +159,11 @@ const parseAnthropicTextResponse = async (response: Response, includeReasoning =
   throw new AIError('PARSE_ERROR', 'Unexpected Anthropic response format')
 }
 
-const sendAnthropicCompatibleRequest = async (url: string, opts: { requestBody: any; apiKey: string; signal?: AbortSignal }) => {
-  return await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': opts.apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify(opts.requestBody),
-    signal: opts.signal
-  })
-}
-
 const sendOpenCodeGoRequest = async (requestBody: any, apiKey: string, signal?: AbortSignal) => {
-  const response = await sendOpenAiCompatibleRequest(OPENCODE_GO_CHAT_COMPLETIONS_URL, {
-    requestBody,
-    apiKey,
+  const response = await fetch(OPENCODE_GO_CHAT_COMPLETIONS_URL, {
+    method: 'POST',
+    headers: buildOpenCodeGoHeaders(getOpenAiCompatibleHeaders(apiKey)),
+    body: JSON.stringify(requestBody),
     signal
   })
 
@@ -194,9 +182,14 @@ const sendOpenCodeGoRequest = async (requestBody: any, apiKey: string, signal?: 
 }
 
 const sendOpenCodeGoAnthropicRequest = async (requestBody: any, apiKey: string, signal?: AbortSignal) => {
-  const response = await sendAnthropicCompatibleRequest(OPENCODE_GO_MESSAGES_URL, {
-    requestBody,
-    apiKey,
+  const response = await fetch(OPENCODE_GO_MESSAGES_URL, {
+    method: 'POST',
+    headers: buildOpenCodeGoHeaders({
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    }),
+    body: JSON.stringify(requestBody),
     signal
   })
 
@@ -384,7 +377,7 @@ export const fetchOpenCodeGoModels = async (apiKey?: string) => {
       headers['Authorization'] = `Bearer ${apiKey.trim()}`
     }
 
-    const response = await fetch(OPENCODE_GO_MODELS_URL, { headers })
+    const response = await fetch(OPENCODE_GO_MODELS_URL, { headers: buildOpenCodeGoHeaders(headers) })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))

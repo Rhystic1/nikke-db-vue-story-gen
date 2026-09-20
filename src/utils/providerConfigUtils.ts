@@ -30,6 +30,34 @@ export const OPENCODE_GO_ANTHROPIC_MODELS = new Set([
   'qwen3.6-plus'
 ])
 
+const OPENCODE_GO_SESSION_STORAGE_KEY = 'nikke_opencode_go_session'
+const OPENCODE_GO_CLIENT_ID = 'nikke-db-story-gen'
+
+export const getOpenCodeGoSessionId = (): string => {
+  let id = sessionStorage.getItem(OPENCODE_GO_SESSION_STORAGE_KEY)
+  if (!id) {
+    id = crypto.randomUUID()
+    sessionStorage.setItem(OPENCODE_GO_SESSION_STORAGE_KEY, id)
+  }
+
+  return id
+}
+
+export const rotateOpenCodeGoSessionId = (): string => {
+  const id = crypto.randomUUID()
+  sessionStorage.setItem(OPENCODE_GO_SESSION_STORAGE_KEY, id)
+
+  return id
+}
+
+export const buildOpenCodeGoHeaders = (base: Record<string, string> = {}): Record<string, string> => {
+  return {
+    ...base,
+    'x-opencode-session': getOpenCodeGoSessionId(),
+    'x-opencode-client': OPENCODE_GO_CLIENT_ID
+  }
+}
+
 export const tokenUsageOptions = [
   { label: 'Low (10 turns)', value: 'low' },
   { label: 'Medium (30 turns)', value: 'medium' },
