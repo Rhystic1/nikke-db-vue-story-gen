@@ -55,14 +55,14 @@ const firstStrictProblem = (node: SchemaNode, path: string[], isRoot: boolean): 
   }
 
   if (!isRoot && (!properties || typeof properties !== 'object' || Array.isArray(properties))) {
-    return requiredError(path, "Missing 'properties'.")
+    return requiredError(path, 'Missing \'properties\'.')
   }
 
   if (properties && typeof properties === 'object' && !Array.isArray(properties)) {
     const keys = Object.keys(properties)
     const required = Array.isArray(node.required) ? node.required : null
     if (!required) {
-      return requiredError(path, keys.length ? `Missing '${keys[0]}'.` : "Missing 'required'.")
+      return requiredError(path, keys.length ? `Missing '${keys[0]}'.` : 'Missing \'required\'.')
     }
 
     const missing = keys.filter((key) => !required.includes(key))
