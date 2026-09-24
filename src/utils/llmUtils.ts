@@ -46,6 +46,54 @@ const buildOpenAiCompatibleRequestBody = (opts: {
   return requestBody
 }
 
+// GLM-5.3 and GLM-5.3-Flash accept reasoning_effort (low | high | max), not an OpenRouter reasoning object.
+// Neither model can disable thinking. The None dropdown value is sent as low.
+// https://docs.z.ai/guides/llm/glm-5.3
+// https://docs.z.ai/guides/capabilities/thinking
+const OPENCODE_GO_GLM_5_3_MODELS = new Set(['glm-5.3', 'glm-5.3-flash'])
+
+const toGlm53ReasoningEffort = (effort: string) => {
+  switch (effort) {
+    case 'none':
+    case 'minimal':
+    case 'low':
+      return 'low'
+    case 'medium':
+    case 'high':
+      return 'high'
+    case 'xhigh':
+    case 'max':
+      return 'max'
+    default:
+      return effort
+  }
+}
+
+const buildOpenCodeGoChatRequestBody = (opts: {
+  messages: any[]
+  maxTokens: number
+  model?: string
+  modeIsGame?: boolean
+  reasoningEffort?: string
+  includeJsonSchema?: boolean
+  reasoningExclude?: boolean
+  includeAnimReason?: boolean
+}) => {
+  const requestBody = buildOpenAiCompatibleRequestBody(opts)
+
+  if (!opts.model || !OPENCODE_GO_GLM_5_3_MODELS.has(opts.model) || !requestBody.reasoning) {
+    return requestBody
+  }
+
+  const effort = requestBody.reasoning.effort
+  delete requestBody.reasoning
+  if (typeof effort === 'string' && effort && effort !== 'default') {
+    requestBody.reasoning_effort = toGlm53ReasoningEffort(effort)
+  }
+
+  return requestBody
+}
+
 const getOpenAiCompatibleHeaders = (apiKey?: string) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
@@ -260,7 +308,7 @@ const callOpenCodeGoTextRequest = async (opts: { messages: any[]; model: string;
     return await parseAnthropicTextResponse(result.response, includeReasoning)
   }
 
-  const requestBody = buildOpenAiCompatibleRequestBody({
+  const requestBody = buildOpenCodeGoChatRequestBody({
     messages,
     maxTokens,
     model,
@@ -274,7 +322,7 @@ const callOpenCodeGoTextRequest = async (opts: { messages: any[]; model: string;
       console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
       modelsWithoutReasoningSupport.value.add(model)
       sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
-      const retryRequestBody = buildOpenAiCompatibleRequestBody({
+      const retryRequestBody = buildOpenCodeGoChatRequestBody({
         messages,
         maxTokens,
         model
@@ -626,7 +674,7 @@ export const callOpenCodeGo = async (
     return callWithoutJsonFormat()
   }
 
-  const requestBody = buildOpenAiCompatibleRequestBody({
+  const requestBody = buildOpenCodeGoChatRequestBody({
     messages,
     maxTokens,
     model,
@@ -650,7 +698,7 @@ export const callOpenCodeGo = async (
       console.warn(`Model ${model} rejected reasoning settings, remembering and retrying without reasoning...`)
       modelsWithoutReasoningSupport.value.add(model)
       sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
-      const retryRequestBody = buildOpenAiCompatibleRequestBody({
+      const retryRequestBody = buildOpenCodeGoChatRequestBody({
         messages,
         maxTokens,
         model,
