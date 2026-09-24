@@ -91,6 +91,23 @@ describe('OpenCode Go glm-5.3 reasoning field', () => {
     expect(modelsWithoutReasoningSupport.value.has('glm-5.3')).toBe(false)
   })
 
+  it('hardcodes None to low for glm-5.3 and glm-5.3-flash', async () => {
+    for (const model of ['glm-5.3', 'glm-5.3-flash']) {
+      requests = []
+      modelsWithoutReasoningSupport.value.clear()
+      await callOpenCodeGo(messages, {
+        model,
+        apiKey: 'test-key',
+        modeIsGame: false,
+        maxTokens: 32,
+        reasoningEffort: 'none'
+      })
+      expect(requests, model).toHaveLength(1)
+      expect(requests[0].reasoning, model).toBeUndefined()
+      expect(requests[0].reasoning_effort, model).toBe('low')
+    }
+  })
+
   it('maps the effort dropdown onto low, high, and max', async () => {
     const cases = [
       ['none', 'low'],
@@ -158,5 +175,16 @@ describe('OpenCode Go glm-5.3 reasoning field', () => {
     expect(requests[0].reasoning).toEqual({ effort: 'high', exclude: false })
     expect(requests[0].reasoning_effort).toBeUndefined()
     expect(result).toBe('other-ok')
+
+    requests = []
+    await callOpenCodeGo(messages, {
+      model: 'kimi-k2.6',
+      apiKey: 'test-key',
+      modeIsGame: false,
+      maxTokens: 32,
+      reasoningEffort: 'none'
+    })
+    expect(requests[0].reasoning).toEqual({ effort: 'none', exclude: false })
+    expect(requests[0].reasoning_effort).toBeUndefined()
   })
 })

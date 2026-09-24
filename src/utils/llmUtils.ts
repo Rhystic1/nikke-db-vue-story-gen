@@ -46,9 +46,11 @@ const buildOpenAiCompatibleRequestBody = (opts: {
   return requestBody
 }
 
-// GLM-5.3 accepts reasoning_effort (low | high | max), not an OpenRouter reasoning object.
+// GLM-5.3 and GLM-5.3-Flash accept reasoning_effort (low | high | max), not an OpenRouter reasoning object.
+// Neither model can disable thinking. The None dropdown value is sent as low.
 // https://docs.z.ai/guides/llm/glm-5.3
-const OPENCODE_GO_GLM_5_3_MODELS = new Set(['glm-5.3'])
+// https://docs.z.ai/guides/capabilities/thinking
+const OPENCODE_GO_GLM_5_3_MODELS = new Set(['glm-5.3', 'glm-5.3-flash'])
 
 const toGlm53ReasoningEffort = (effort: string) => {
   switch (effort) {
