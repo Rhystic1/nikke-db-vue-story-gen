@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { callOpenCodeGo } from '@/utils/llmUtils'
+import { callOpenCodeGo, callOpenCodeGoSummarization } from '@/utils/llmUtils'
 import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport } from '@/utils/providerConfigUtils'
 
 const UPSTREAM_REASONING_REJECTION = {
@@ -115,6 +115,20 @@ describe('OpenCode Go glm-5.3 reasoning field', () => {
       expect(requests[0].reasoning_effort, selected).toBe(expected)
       expect(requests, selected).toHaveLength(1)
     }
+  })
+
+  it('sends reasoning_effort on the text summarization path', async () => {
+    await callOpenCodeGoSummarization(messages, {
+      model: 'glm-5.3',
+      apiKey: 'test-key',
+      maxTokens: 32,
+      reasoningEffort: 'low'
+    })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0].reasoning).toBeUndefined()
+    expect(requests[0].reasoning_effort).toBe('low')
+    expect(requests[0].response_format).toBeUndefined()
   })
 
   it('omits both reasoning fields when effort is default', async () => {
