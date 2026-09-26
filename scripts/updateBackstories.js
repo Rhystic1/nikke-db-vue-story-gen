@@ -121,7 +121,9 @@ let POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY
 let POLLINATIONS_MODEL = null
 let OPENROUTER_MODEL_SELECTED = false
 
-if (!GEMINI_API_KEY && !OPENROUTER_API_KEY && !POLLINATIONS_API_KEY) {
+const isDirectRun = require.main === module
+
+if (isDirectRun && !GEMINI_API_KEY && !OPENROUTER_API_KEY && !POLLINATIONS_API_KEY) {
   console.error('Error: GEMINI_API_KEY, OPENROUTER_API_KEY, or POLLINATIONS_API_KEY environment variable is required')
   console.error('Set one with:')
   console.error('  export GEMINI_API_KEY=your_gemini_key_here')
@@ -2220,14 +2222,28 @@ function emitJsonResult() {
   console.log(`\n__JSON_RESULT__\n${JSON.stringify(result)}`)
 }
 
-main()
-  .then(() => {
-    emitJsonResult()
-  })
-  .catch((e) => {
-    console.error('Fatal error:', e)
-    if (CLI_JSON_OUTPUT) {
-      console.log(`\n__JSON_RESULT__\n${JSON.stringify({ status: 'error', error: e.message })}`)
-    }
-    process.exit(1)
-  })
+function sortAndAttachProfileEntry(profiles, charName, entry) {
+  return {
+    profiles: { ...profiles, [charName]: { ...entry } },
+    omittedId: null,
+    omittedColor: null
+  }
+}
+
+if (isDirectRun) {
+  main()
+    .then(() => {
+      emitJsonResult()
+    })
+    .catch((e) => {
+      console.error('Fatal error:', e)
+      if (CLI_JSON_OUTPUT) {
+        console.log(`\n__JSON_RESULT__\n${JSON.stringify({ status: 'error', error: e.message })}`)
+      }
+      process.exit(1)
+    })
+}
+
+module.exports = {
+  sortAndAttachProfileEntry
+}
