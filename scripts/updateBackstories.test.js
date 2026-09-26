@@ -51,7 +51,7 @@ describe('sortAndAttachProfileEntry', () => {
     const result = sortAndAttachProfileEntry(profiles, 'Anne:Miracle Fairy', { backstory: 'anne' }, realSources)
     const keys = Object.keys(result.profiles)
 
-    assert.deepEqual(keys, ['Ade: Agent Bunny', 'Anne:Miracle Fairy', 'Anchor: Innocent Maid'])
+    assert.deepEqual(keys, ['Ade: Agent Bunny', 'Anchor: Innocent Maid', 'Anne:Miracle Fairy'])
     assert.equal(result.profiles['Anne:Miracle Fairy'].id, 'c121')
     assert.equal(result.profiles['Anne:Miracle Fairy'].color, '#8ad9fe')
     assert.equal(result.profiles['Ade: Agent Bunny'].id, 'c315')
