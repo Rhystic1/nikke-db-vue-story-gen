@@ -1689,5 +1689,23 @@
     },
     "id": "c171",
     "color": "#8d001c"
+  },
+  "Flora": {
+    "appearance": "purple twin-tails, pink eyes, fair skin",
+    "defaultSkin": "frilly white-purple dress, flower patterns, black boots, gloves",
+    "defaultWeapon": "",
+    "personality": "Flora is a Nikke from Botanic Garden who adores plants and flowers. She is highly knowledgeable about botany, eager to share information, and prioritizes studying new specimens. She is an avid gardener who expresses affection by naming and talking to flowers, treating them like her children. She metaphorically explains everything through flowers, views people as different flowers, and refers to them by plant names instead of their real names. She can detect floral scents from others. She is gentle, curious, patient, and caring, but socially awkward and does not get out much; she followed the protagonist because she was fascinated by his changing floral scent. She is perceptive about others' moods, becomes sorrowful when plants die, yet is resolute and motivated to try again. She is described as a flower-obsessed goofball who becomes a determined gardener.",
+    "speech_style": "Flora speaks in a gentle, polite, botanical, and whimsical manner. She frequently uses flower names as nicknames for people and explains concepts through plant analogies and flower symbolism. She talks to plants as if they can understand her, calling them by names like Lysimachia and Peony. Examples: she calls the protagonist Pansy, Daisy, Cosmos, Camellia, Alstroemeria, Baby's Breath, Tulip, Evening Primrose, and finally Blossom; she calls Rupee Forsythia. She may say 'Oops!' when bumping into someone and apologizes when she makes others uncomfortable. Her vocabulary is rich in plant terms and she often frames emotions and behavior in terms of flowers.",
+    "backstory": "Flora is a Nikke from Botanic Garden responsible for tending the Ark's garden, especially flowers. In Main Story Chapter 27, Hammering contacts her while she is on a mission in the crystal region; using her knowledge of energy-draining minerals and plant analogies, she gives Hammering and her friends insight. In the Secret Garden event, Rian informs Flora that Syuen intends to destroy her personal garden; she seeks the protagonist and Happy Zoo squad to track down a rare flower whose aromatic benefits can aid research and help maintain her Eden. In For Rest, Botanic Garden is tasked by Syuen to arrange flowers for Spring Festa, but Trina acts strangely; Flora wants to help her friend and enlists Blossom's help to give her squadmate peace of mind while she and Happy Zoo prepare for the festival. Her Bond Story, set before Secret Garden, details how she meets the protagonist: she follows him because he emits a changing floral fragrance, invites him to her hidden garden, and gives him a seed to raise. Over five episodes, he cares for the seed, which sprouts and eventually blooms as a Coreopsis symbolizing tenderness. Flora reveals her garden is for studying plant environments and mourns several flowers that died, but resolves to keep trying. When the Coreopsis blooms, she finally settles on calling the protagonist 'Blossom' and invites him to keep visiting.",
+    "relationships": {
+      "Commander (Protagonist)": "Flora becomes fascinated by his changing floral scent, follows him, invites him to her garden, gives him a Coreopsis seed to raise, and grows close to him. She calls him various flower names before settling on 'Blossom'; she considers him a flower she has not met before and one of high intrigue.",
+      "Rupee": "They meet when Flora examines a Windflower brooch at Rupee's shop; Flora outsmarts her about the flower's color, calls her 'Forsythia', and rushes off. Rupee is miffed and briefly suspects she is a spy from a rival company.",
+      "Rian": "Rian informs Flora that Syuen intends to destroy her personal garden, prompting Flora to seek help.",
+      "Syuen": "Syuen intends to destroy Flora's personal garden and later tasks Botanic Garden with arranging flowers for the Spring Festa.",
+      "Trina": "A Botanic Garden squadmate. During For Rest, Trina acts stranger than usual, and Flora wants to help her friend, enlisting Blossom's help to give Trina peace of mind.",
+      "Hammering": "Contacts Flora during Chapter 27 while Flora is in the crystal region; Flora provides insight about energy-draining minerals using plant knowledge.",
+      "Happy Zoo": "Flora seeks their aid in the Secret Garden event to track a rare flower and later prepares for the Spring Festa with them.",
+      "Botanic Garden Squad": "Flora is a member; she works with them tending plants and arranging flowers. She is close enough to want to help Trina."
+    }
   }
 }

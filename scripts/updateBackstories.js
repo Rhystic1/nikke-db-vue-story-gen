@@ -23,7 +23,7 @@
  *   --target-file <name>  Target JSON file for create mode: base (default) or variants
  *   --update-scope <name> Scope for update mode: single (requires --char-name) or all (default)
  *   --provider <name>     API provider: gemini, openrouter, or pollinations
- *   --openrouter-model    OpenRouter model: x-ai/grok-4.3 (default), z-ai/glm-5.2, or ~deepseek/deepseek-v4-flash-latest
+ *   --openrouter-model    OpenRouter model: x-ai/grok-4.3 (default), z-ai/glm-5.2, or deepseek/deepseek-v4.1-flash
  *   --pollinations-model  Pollinations model: grok (default), grok-large, or claude-fast
  *   --force               Skip overwrite confirmation in create mode
  *   --json-output         Print machine-readable JSON result on the last line
@@ -48,7 +48,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const POLLINATIONS_API_URL = 'https://gen.pollinations.ai/v1/chat/completions'
 let OPENROUTER_MODEL = 'x-ai/grok-4.3'
-const OPENROUTER_MODELS = ['x-ai/grok-4.3', 'z-ai/glm-5.2', '~deepseek/deepseek-v4-flash-latest']
+const OPENROUTER_MODELS = ['x-ai/grok-4.3', 'z-ai/glm-5.2', 'deepseek/deepseek-v4.1-flash']
 const POLLINATIONS_MODELS = ['grok', 'grok-large', 'claude-fast']
 const RATE_LIMIT_MS = parseInt(process.env.RATE_LIMIT_MS) || 2000
 
@@ -1280,7 +1280,7 @@ async function selectOpenRouterModel() {
   console.log('\nWhich OpenRouter model would you like to use?')
   console.log('1) x-ai/grok-4.3 (current default)')
   console.log('2) z-ai/glm-5.2')
-  console.log('3) ~deepseek/deepseek-v4-flash-latest')
+  console.log('3) deepseek/deepseek-v4.1-flash')
 
   const answer = await new Promise((resolve) => {
     rl.question('\nEnter choice (1, 2, or 3): ', (input) => {
@@ -1293,7 +1293,7 @@ async function selectOpenRouterModel() {
   if (answer === '2') {
     OPENROUTER_MODEL = 'z-ai/glm-5.2'
   } else if (answer === '3') {
-    OPENROUTER_MODEL = '~deepseek/deepseek-v4-flash-latest'
+    OPENROUTER_MODEL = 'deepseek/deepseek-v4.1-flash'
   } else {
     OPENROUTER_MODEL = 'x-ai/grok-4.3'
   }

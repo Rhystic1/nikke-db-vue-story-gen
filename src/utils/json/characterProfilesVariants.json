@@ -283,10 +283,14 @@
     "appearance": "blonde twin tails, blue eyes, smiling",
     "defaultSkin": "black bodysuit, red cape, blue-white armor, orange accents",
     "defaultWeapon": "large glowing orange energy blades",
-    "personality": "",
-    "speech_style": "",
+    "personality": "Laplace: Ultimate Hero is an enthusiastic, dramatic, and self-styled hero who takes the concept of heroism extremely seriously. She is impulsive and theatrical, often bursting into rooms and shattering windows instead of using doors. She is earnest and well-meaning but also naive and pushy, diving headfirst into grand plans like recruiting new heroes without considering practical details such as contact information. She is inspired by heroic cartoons and wants to mentor successors simply because she thinks it would be cool. Despite her over-the-top behavior, she is genuinely devoted to protecting the Ark and helping those in crisis.",
+    "speech_style": "Laplace speaks in loud, exclamatory, heroic declarations. She hollers when entering rooms and uses dramatic, inspirational phrasing. She calls the Commander 'Birdie' and refers to heroism in grand, idealistic terms. Example phrases include: 'Next-Gen Heroes Wanted! Now recruiting aspiring heroes! Interested in world peace? Contact us!' Her tone is enthusiastic, confident, and slightly oblivious to others' skepticism.",
     "backstory": "A true hero who has been reborn using the full might of Missilis Industry's technology. During the Gluttony chapter, Matis debuted with a new modification to assist the Commando Unit once more.",
-    "relationships": {},
+    "relationships": {
+      "Commander (Protagonist)": "Laplace calls him 'Birdie' and treats him as her sounding board and reluctant partner in heroics. She seeks his approval, ignores his practical concerns, and forcibly recruits him to help find new heroes.",
+      "Syuen": "Syuen is Missilis' CEO and personally oversees Matis' maintenance and tuneups, a rare personal touch that Laplace and her squad haven't enjoyed since Matis' infancy.",
+      "Annihilio": "Annihilio is a Heretic enemy threatening the Ark with biochemical weapons; Laplace and Matis are deployed to intercept her and her Rapture forces."
+    },
     "id": "c103",
     "color": "#5c8af7"
   },
@@ -362,7 +366,7 @@
     "appearance": "short blonde hair, blue eyes, smiling",
     "defaultSkin": "white crop top, black bra, tight white pants with orange-teal accents, tech visor",
     "defaultWeapon": "large white-gray futuristic railgun",
-    "personality": "",
+    "personality": "Described as Missilis Industry's best researcher, this variant is portrayed as highly intelligent and analytically sharp, with enhanced firepower and the ability to calculate all variables on the battlefield. No explicit personality traits or behavioral details are provided beyond this combat-focused, intellectual demeanor.",
     "speech_style": "",
     "backstory": "Maxwell: Ordinary Mechanic is described as Missilis Industry's best researcher who has returned with enhanced firepower and even sharper intelligence, capable of calculating all variables on the battlefield. In the Gluttony chapter of the main story, Matis (the squad she belongs to) debuted with a new modification to assist the Commando Unit once more. This variant represents an upgraded version of the base Maxwell character with improved combat and analytical capabilities.",
     "relationships": {},
@@ -670,5 +674,14 @@
     },
     "id": "c094",
     "color": "#e70505"
+  },
+  "Drake: Great Villain": {
+    "appearance": "short silver hair, red eyes, pale skin, slim athletic build",
+    "defaultSkin": "black-red armored bodysuit, red cape, black shorts, armored boots and gloves",
+    "defaultWeapon": "large black-red futuristic cannon",
+    "personality": "",
+    "speech_style": "",
+    "backstory": "",
+    "relationships": {}
   }
 }
