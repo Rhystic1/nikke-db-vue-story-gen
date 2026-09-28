@@ -447,32 +447,81 @@ async function fetchImageAsBase64(imageUrl) {
   }
 }
 
+// Drop one trailing path segment. "Character/Variant" becomes "Character".
+function dropTrailingWikiSegment(pageName) {
+  const slash = pageName.lastIndexOf('/')
+  if (slash <= 0) return null
+
+  return pageName.slice(0, slash)
+}
+
+function isMissingWikiPage(data) {
+  if (!data || data.error) return true
+  if (data.parse?.wikitext?.['*'] === undefined || data.parse?.wikitext?.['*'] === null) return true
+
+  return false
+}
+
+async function requestWikiPage(pageName) {
+  const url = `${WIKI_PROXY_URL}?page=${encodeURIComponent(pageName)}`
+  const response = await fetch(url)
+
+  return response.json()
+}
+
+// Create mode may retry a missing page once, one level above.
+async function fetchWikiPageContent(pageName, options = {}) {
+  const pages = [pageName]
+  if (options.retryParent) {
+    const parent = dropTrailingWikiSegment(pageName)
+    if (parent) pages.push(parent)
+  }
+
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i]
+    let data
+    try {
+      data = await requestWikiPage(page)
+    } catch (e) {
+      console.error(`  Error fetching wiki page ${page}:`, e.message)
+
+      return null
+    }
+
+    if (isMissingWikiPage(data)) {
+      const info = data?.error?.info || data?.error || 'missing'
+      if (i === 0 && pages.length > 1) {
+        console.warn(`  Wiki page not found: ${page} (${typeof info === 'string' ? info : 'missing'}). Retrying ${pages[1]}`)
+        continue
+      }
+      console.warn(`  Wiki page not found: ${page}`)
+
+      return null
+    }
+
+    const wikitext = data.parse.wikitext['*']
+    if (!wikitext) {
+      console.warn(`  No content found for ${page}`)
+
+      return null
+    }
+
+    if (i > 0) {
+      console.log(`  Using parent wiki page ${page}`)
+    }
+
+    return cleanWikiContent(wikitext)
+  }
+
+  return null
+}
+
 async function fetchWikiContent(characterName) {
   const wikiSearchName = getWikiPageName(characterName)
   const wikiName = wikiSearchName.replace(/ /g, '_')
   const pageName = wikiName + '/Story'
-  const url = `${WIKI_PROXY_URL}?page=${encodeURIComponent(pageName)}`
 
-  try {
-    const response = await fetch(url)
-    const data = await response.json()
-
-    if (data.error) {
-      console.warn(`  Wiki page not found for ${characterName}:`, data.error)
-      return null
-    }
-
-    const wikitext = data.parse?.wikitext?.['*']
-    if (!wikitext) {
-      console.warn(`  No content found for ${characterName}`)
-      return null
-    }
-
-    return cleanWikiContent(wikitext)
-  } catch (e) {
-    console.error(`  Error fetching wiki for ${characterName}:`, e.message)
-    return null
-  }
+  return fetchWikiPageContent(pageName, { retryParent: MODE === 'create' })
 }
 
 // Check if a field is empty (for skip logic)
@@ -2220,14 +2269,25 @@ function emitJsonResult() {
   console.log(`\n__JSON_RESULT__\n${JSON.stringify(result)}`)
 }
 
-main()
-  .then(() => {
-    emitJsonResult()
-  })
-  .catch((e) => {
-    console.error('Fatal error:', e)
-    if (CLI_JSON_OUTPUT) {
-      console.log(`\n__JSON_RESULT__\n${JSON.stringify({ status: 'error', error: e.message })}`)
-    }
-    process.exit(1)
-  })
+if (require.main === module) {
+  main()
+    .then(() => {
+      emitJsonResult()
+    })
+    .catch((e) => {
+      console.error('Fatal error:', e)
+      if (CLI_JSON_OUTPUT) {
+        console.log(`\n__JSON_RESULT__\n${JSON.stringify({ status: 'error', error: e.message })}`)
+      }
+      process.exit(1)
+    })
+}
+
+module.exports = {
+  dropTrailingWikiSegment,
+  fetchWikiPageContent,
+  fetchWikiContent,
+  setMode: (mode) => {
+    MODE = mode
+  }
+}
