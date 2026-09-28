@@ -23,7 +23,7 @@
  *   --target-file <name>  Target JSON file for create mode: base (default) or variants
  *   --update-scope <name> Scope for update mode: single (requires --char-name) or all (default)
  *   --provider <name>     API provider: gemini, openrouter, or pollinations
- *   --openrouter-model    OpenRouter model: x-ai/grok-4.3 (default), z-ai/glm-5.2, or deepseek/deepseek-v4.1-flash
+ *   --openrouter-model    OpenRouter model id. Listed choices: x-ai/grok-4.3 (default), z-ai/glm-5.2, deepseek/deepseek-v4.1-flash. Any other id is accepted.
  *   --pollinations-model  Pollinations model: grok (default), grok-large, or claude-fast
  *   --force               Skip overwrite confirmation in create mode
  *   --json-output         Print machine-readable JSON result on the last line
@@ -1463,52 +1463,55 @@ async function selectPollinationsModel() {
   console.log(`Selected Pollinations model: ${POLLINATIONS_MODEL}\n`)
 }
 
+// Menu choice or typed id. Chat requests read OPENROUTER_MODEL.
+async function promptOpenRouterModelChoice() {
+  console.log('\nWhich OpenRouter model would you like to use?')
+  OPENROUTER_MODELS.forEach((id, index) => {
+    const label = index === 0 ? `${id} (current default)` : id
+    console.log(`${index + 1}) ${label}`)
+  })
+  const customIndex = OPENROUTER_MODELS.length + 1
+  console.log(`${customIndex}) Type a custom model id`)
+
+  const answer = await ask(`\nEnter choice (1-${customIndex}): `)
+
+  if (answer === String(customIndex)) {
+    const customId = await ask('Enter OpenRouter model id: ')
+    if (!customId) {
+      console.error('Error: No OpenRouter model id provided.')
+      process.exit(1)
+    }
+    OPENROUTER_MODEL = customId
+  } else {
+    const picked = parseInt(answer, 10)
+    OPENROUTER_MODEL = OPENROUTER_MODELS[picked - 1] || OPENROUTER_MODELS[0]
+  }
+
+  console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
+}
+
 // Select OpenRouter model
 async function selectOpenRouterModel() {
   OPENROUTER_MODEL_SELECTED = true
   if (CLI_OPENROUTER_MODEL) {
-    const validModels = OPENROUTER_MODELS
-    if (!validModels.includes(CLI_OPENROUTER_MODEL)) {
-      console.error(`Error: Invalid --openrouter-model "${CLI_OPENROUTER_MODEL}". Must be: ${validModels.join(', ')}`)
+    const modelId = CLI_OPENROUTER_MODEL.trim()
+    if (!modelId) {
+      console.error('Error: --openrouter-model requires a model id')
       process.exit(1)
     }
-    OPENROUTER_MODEL = CLI_OPENROUTER_MODEL
+    OPENROUTER_MODEL = modelId
     console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
+
     return
   }
 
   if (NON_INTERACTIVE) {
     console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL} (default for non-interactive)\n`)
+
     return
   }
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  })
-
-  console.log('\nWhich OpenRouter model would you like to use?')
-  console.log('1) x-ai/grok-4.3 (current default)')
-  console.log('2) z-ai/glm-5.2')
-  console.log('3) deepseek/deepseek-v4.1-flash')
-
-  const answer = await new Promise((resolve) => {
-    rl.question('\nEnter choice (1, 2, or 3): ', (input) => {
-      resolve(input.trim())
-    })
-  })
-
-  rl.close()
-
-  if (answer === '2') {
-    OPENROUTER_MODEL = 'z-ai/glm-5.2'
-  } else if (answer === '3') {
-    OPENROUTER_MODEL = 'deepseek/deepseek-v4.1-flash'
-  } else {
-    OPENROUTER_MODEL = 'x-ai/grok-4.3'
-  }
-
-  console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
+  await promptOpenRouterModelChoice()
 }
 
 // Select API provider
@@ -2474,6 +2477,8 @@ module.exports = {
   fetchWikiContent,
   prepareVisualModel,
   extractVisualData,
+  extractData,
+  promptOpenRouterModelChoice,
   getModelCapability,
   getOpenRouterModel: () => OPENROUTER_MODEL,
   setMode: (mode) => {

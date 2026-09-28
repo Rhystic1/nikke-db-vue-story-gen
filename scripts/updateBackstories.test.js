@@ -266,3 +266,63 @@ serial('non-interactive text model skips visual analysis and does not switch', a
     script.resetVisualModelDecision()
   }
 })
+
+serial('OpenRouter startup accepts a typed model id and chat reads that id', async () => {
+  script.setApiProvider('openrouter')
+  script.setNonInteractive(false)
+  script.resetVisualModelDecision()
+  const logs = []
+  const originalLog = console.log
+  console.log = (...args) => {
+    logs.push(args.join(' '))
+  }
+  const prompt = scriptedPrompt(['4', 'custom/org-model'])
+  const seen = []
+  const originalFetch = global.fetch
+  global.fetch = async (url, options) => {
+    seen.push(JSON.parse(options.body).model)
+
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"backstory":"Typed model backstory text."}' } }]
+      }),
+      text: async () => ''
+    }
+  }
+  try {
+    await script.promptOpenRouterModelChoice()
+    const data = await script.extractData('Rapi', 'Wiki text about Rapi.', null, 'base')
+
+    assert.equal(script.getOpenRouterModel(), 'custom/org-model')
+    assert.deepEqual(seen, ['custom/org-model'])
+    assert.equal(data.backstory, 'Typed model backstory text.')
+    assert.match(prompt.text(), /Enter OpenRouter model id/)
+    assert.match(logs.join('\n'), /4\) Type a custom model id/)
+  } finally {
+    console.log = originalLog
+    global.fetch = originalFetch
+  }
+})
+
+serial('OpenRouter menu choices still select the listed model ids', async () => {
+  script.setApiProvider('openrouter')
+  script.setNonInteractive(false)
+  const originalLog = console.log
+  console.log = () => {}
+  try {
+    scriptedPrompt(['2'])
+    await script.promptOpenRouterModelChoice()
+    assert.equal(script.getOpenRouterModel(), 'z-ai/glm-5.2')
+
+    scriptedPrompt(['3'])
+    await script.promptOpenRouterModelChoice()
+    assert.equal(script.getOpenRouterModel(), 'deepseek/deepseek-v4.1-flash')
+
+    scriptedPrompt(['1'])
+    await script.promptOpenRouterModelChoice()
+    assert.equal(script.getOpenRouterModel(), 'x-ai/grok-4.3')
+  } finally {
+    console.log = originalLog
+  }
+})
