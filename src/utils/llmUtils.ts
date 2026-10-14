@@ -474,23 +474,6 @@ export const resolveOpenRouterTierSupport = async (modelId: string): Promise<Ope
   }
 }
 
-export const openRouterSpeedUsesNormalRate = (speed: OpenRouterSpeed, support: OpenRouterTierSupport | null): boolean => {
-  if (speed !== 'slow' && speed !== 'fast') {
-
-    return false
-  }
-  if (!support || support.status !== 'known') {
-
-    return false
-  }
-  if (speed === 'slow') {
-
-    return !support.flex
-  }
-
-  return !support.priority
-}
-
 const OPENROUTER_SPEED_SERVICE_TIER: Record<OpenRouterSpeed, 'flex' | 'priority' | undefined> = {
   default: undefined,
   slow: 'flex',

@@ -538,7 +538,7 @@
           </n-form-item>
           <n-form-item v-if="showAdvancedSettings && apiProvider === 'openrouter'">
             <template #label>
-              Speed
+              Model Speed
               <n-popover trigger="hover" placement="bottom" style="max-width: 360px">
                 <template #trigger>
                   <n-icon size="16" style="vertical-align: text-bottom; margin-left: 4px; cursor: help; color: #888">
@@ -546,18 +546,13 @@
                   </n-icon>
                 </template>
                 <div>
-                  Speed picks an OpenRouter service tier. Default uses the model's normal price and speed and sends no tier.<br /><br />
+                  Model Speed picks an OpenRouter service tier. Default uses the model's normal price and speed and sends no tier.<br /><br />
                   Slow requests flex, which costs less and can be slower or less available. Fast requests priority, which costs more.<br /><br />
                   If the model has no such tier, the choice is ignored and the request runs like Default.
                 </div>
               </n-popover>
             </template>
-            <div style="width: 100%">
-              <n-select v-model:value="openRouterSpeed" :options="openRouterSpeedOptions" />
-              <div v-if="showOpenRouterSpeedNote" style="margin-top: 8px; font-size: 12px; line-height: 1.4; color: #888">
-                This model has no Slow or Fast tier, so the request uses the normal rate.
-              </div>
-            </div>
+            <n-select v-model:value="openRouterSpeed" :options="modelSpeedOptions" />
           </n-form-item>
           <n-divider />
 
@@ -1014,7 +1009,7 @@ import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
 import { formatBackgroundFolderLoadFeedback, resolveAiBackgroundSelection } from '@/utils/storyBackgroundUtils'
 import { ttsEnabled, ttsEndpoint, ttsProvider, gptSovitsEndpoint, gptSovitsBasePath, chatterboxEndpoint, ttsProviderOptions, playTTS } from '@/utils/ttsUtils'
 import { allowWebSearchFallback, usesWikiFetch, usesPollinationsAutoFallback, webSearchFallbackHelpText, searchForCharacters, searchForCharactersWithNativeSearch, searchForCharactersViaWikiFetch, checkForSearchRequest as checkForSearchRequestUtil } from '@/utils/aiWebSearchUtils'
-import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, formatAnimationsForContext, getReasoningEffortOptions, openRouterSpeedOptions, normalizeOpenRouterSpeed, resolveOpenRouterTierSupport, openRouterSpeedUsesNormalRate, handleTumblingWindowSummarization, rotateOpenCodeGoSessionId, type OpenRouterSpeed, type OpenRouterTierSupport } from '@/utils/llmUtils'
+import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, formatAnimationsForContext, getReasoningEffortOptions, openRouterSpeedOptions, normalizeOpenRouterSpeed, resolveOpenRouterTierSupport, handleTumblingWindowSummarization, rotateOpenCodeGoSessionId, type OpenRouterSpeed, type OpenRouterTierSupport } from '@/utils/llmUtils'
 import { captureSpineCanvasPlacement, restoreSpineCanvasPlacement } from '@/utils/spineUtils'
 import { isInteractiveOverlayTarget, isSpineCanvasAtPoint, getEventPoint } from '@/utils/overlayUtils'
 import { initChatLayout, createDragHandlers, createResizeHandlers, createViewportHandlers } from '@/utils/windowUtils'
@@ -1078,7 +1073,26 @@ watch(selectedPlayerCharacterName, (name) => {
 })
 
 const reasoningEffortOptions = computed(() => getReasoningEffortOptions(apiProvider.value))
-const showOpenRouterSpeedNote = computed(() => openRouterSpeedUsesNormalRate(openRouterSpeed.value, openRouterTierSupport.value))
+const modelSpeedOptions = computed(() => {
+  const support = openRouterTierSupport.value
+  if (!support || support.status !== 'known') {
+
+    return openRouterSpeedOptions
+  }
+
+  return openRouterSpeedOptions.map((option) => {
+    if (option.value === 'slow' && !support.flex) {
+
+      return { ...option, disabled: true }
+    }
+    if (option.value === 'fast' && !support.priority) {
+
+      return { ...option, disabled: true }
+    }
+
+    return option
+  })
+})
 
 watch([apiProvider, model], async ([provider, modelId]) => {
   if (provider !== 'openrouter' || !modelId) {
@@ -1097,6 +1111,20 @@ watch([apiProvider, model], async ([provider, modelId]) => {
 
   openRouterTierSupport.value = support
 }, { immediate: true })
+
+watch([openRouterSpeed, openRouterTierSupport], () => {
+  const support = openRouterTierSupport.value
+  if (!support || support.status !== 'known') {
+
+    return
+  }
+  if (openRouterSpeed.value === 'slow' && !support.flex) {
+    openRouterSpeed.value = 'default'
+  }
+  if (openRouterSpeed.value === 'fast' && !support.priority) {
+    openRouterSpeed.value = 'default'
+  }
+})
 const enableContextCaching = ref(true)
 const debugModeEnabled = ref(import.meta.env.DEV && localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === 'true')
 const playbackMode = ref('manual')
