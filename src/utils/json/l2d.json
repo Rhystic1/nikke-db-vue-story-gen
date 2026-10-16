@@ -811,8 +811,15 @@
     "fr": "Laplace : Héroïne ultime Héroïne prototype"
   },
   {
-    "name": "Drake",
-    "id": "c104"
+    "name": "Drake: Great Villain",
+    "id": "c104",
+    "ko": "드레이크 : 그레이트 빌런",
+    "jp": "ドレイク：グレイトヴィラン",
+    "tw": "德雷克：終極反派",
+    "cn": "德雷克：终极反派",
+    "de": "Draka: Große Schurkin",
+    "th": "เดรค: มหาวายร้าย",
+    "fr": "Drake : Grande méchante"
   },
   {
     "name": "Maxwell: Ordinary Mechanic",
@@ -1044,6 +1051,17 @@
     "de": "Sugar Drachenbändigerin",
     "th": "ชูการ์ นักเลงลายมังกร",
     "fr": "Sugar Jardin sauvage"
+  },
+  {
+    "id": "c140_03",
+    "name": "Sugar Killer Rabbit",
+    "ko": "슈가 킬러 래빗",
+    "jp": "シュガー キラーラビット",
+    "tw": "舒格 殺手兔女郎",
+    "cn": "舒格 杀手兔女郎",
+    "de": "Sugar Killerhäschen",
+    "th": "ชูการ์ กระต่ายมือปืน",
+    "fr": "Sugar Lapine tueuse"
   },
   {
     "name": "Milk",
@@ -2193,6 +2211,17 @@
     "fr": "Mana"
   },
   {
+    "id": "c290_01",
+    "name": "Mana Drunken Rabbit",
+    "ko": "마나 드렁큰 래빗",
+    "jp": "マナ ドランクンラビット",
+    "tw": "瑪娜 醉酒兔女郎",
+    "cn": "玛娜 醉酒兔女郎",
+    "de": "Mana Beschwipstes Häschen",
+    "th": "มานา กระต่ายขี้เมา",
+    "fr": "Mana Lapine ivre"
+  },
+  {
     "name": "Ether",
     "id": "c291",
     "ko": "에테르",
@@ -2846,6 +2875,28 @@
     "fr": "Quency : Reine de l'évasion Danseuse cycnéenne"
   },
   {
+    "id": "c404",
+    "name": "Guilty: Mighty Bunny",
+    "ko": "길티 : 마이티 바니",
+    "jp": "ギルティ：マイティバニー",
+    "tw": "吉爾提：神力兔女郎",
+    "cn": "吉尔提：神力兔女郎",
+    "de": "Guilty: Mächtiges Häschen",
+    "th": "กิลตี้: กระต่ายจอมพลัง",
+    "fr": "Guilty : Super lapine"
+  },
+  {
+    "id": "c405",
+    "name": "Sin: Swift Bunny",
+    "ko": "신 : 스위프트 바니",
+    "jp": "シン：スウィフトバニー",
+    "tw": "森：疾速兔女郎",
+    "cn": "森：疾速兔女郎",
+    "de": "Sin: Flinkes Häschen",
+    "th": "ซิน: กระต่ายลมกรด",
+    "fr": "Sin : Lapine véloce"
+  },
+  {
     "name": "Flora",
     "id": "c411",
     "ko": "플로라",
@@ -3362,6 +3413,17 @@
     "de": "Kross",
     "th": "ครัสต์",
     "fr": "Crust"
+  },
+  {
+    "id": "c521_01",
+    "name": "Crust Treat Chef",
+    "ko": "크러스트 트릿 셰프",
+    "jp": "クラスト トリートシェフ",
+    "tw": "克勞斯特 搗蛋主廚",
+    "cn": "克劳斯特 捣蛋甜心主厨",
+    "de": "Kross Naschexpertin",
+    "th": "ครัสต์ เชฟของหวาน",
+    "fr": "Crust Cheffe farceuse"
   },
   {
     "name": "Sky",
@@ -4454,51 +4516,135 @@
   },
   {
     "name": "Ingrid",
-    "id": "c900"
+    "id": "c900",
+    "ko": "잉그리드",
+    "jp": "イングリッド",
+    "tw": "英格麗",
+    "cn": "英格丽",
+    "de": "Ingrid",
+    "th": "อิงกริด",
+    "fr": "Ingrid"
   },
   {
     "name": "Syuen",
-    "id": "c901"
+    "id": "c901",
+    "ko": "슈엔",
+    "jp": "シュエン",
+    "tw": "舒恩",
+    "cn": "舒恩",
+    "de": "Syuen",
+    "th": "ซูเอิน",
+    "fr": "Syuen"
   },
   {
     "name": "Mustang",
-    "id": "c902"
+    "id": "c902",
+    "ko": "머스탱",
+    "jp": "マスタング",
+    "tw": "馬士丁",
+    "cn": "马士丁",
+    "de": "Mustang",
+    "th": "มัสแตง",
+    "fr": "Mustang"
   },
   {
     "name": "Mustang (CN)",
-    "id": "c902_01"
+    "id": "c902_01",
+    "ko": "머스탱 (CN)",
+    "jp": "マスタング (CN)",
+    "tw": "馬士丁 (CN)",
+    "cn": "马士丁 (CN)",
+    "de": "Mustang (CN)",
+    "th": "มัสแตง (CN)",
+    "fr": "Mustang (CN)"
   },
   {
     "name": "Andersen",
-    "id": "c903"
+    "id": "c903",
+    "ko": "엔더슨",
+    "jp": "アンダーソン",
+    "tw": "安德森",
+    "cn": "安德森",
+    "de": "Andersen",
+    "th": "แอนเดอร์เซน",
+    "fr": "Andersen"
   },
   {
     "name": "Andersen Soaked",
-    "id": "c903_01"
+    "id": "c903_01",
+    "ko": "엔더슨",
+    "jp": "アンダーソン",
+    "tw": "安德森",
+    "cn": "安德森",
+    "de": "Andersen",
+    "th": "แอนเดอร์เซน",
+    "fr": "Andersen"
   },
   {
     "name": "Enikk",
-    "id": "c904"
+    "id": "c904",
+    "ko": "에닉",
+    "jp": "エニック",
+    "tw": "阿尼克",
+    "cn": "阿尼克",
+    "de": "Enikk",
+    "th": "เอนิค",
+    "fr": "Enikk"
   },
   {
     "name": "Rian",
-    "id": "c905"
+    "id": "c905",
+    "ko": "리안",
+    "jp": "リアン",
+    "tw": "莉安",
+    "cn": "莉安",
+    "de": "Rian",
+    "th": "ริแอน",
+    "fr": "Rian"
   },
   {
     "name": "Shifty",
-    "id": "c907"
+    "id": "c907",
+    "ko": "시프티",
+    "jp": "シフティー",
+    "tw": "謝芙蒂",
+    "cn": "谢芙蒂",
+    "de": "Shifty",
+    "th": "ชิฟตี้",
+    "fr": "Futée"
   },
   {
     "name": "Shifty_old",
-    "id": "c907_01"
+    "id": "c907_01",
+    "ko": "시프티 old",
+    "jp": "シフティー old",
+    "tw": "謝芙蒂 old",
+    "cn": "谢芙蒂 old",
+    "de": "Shifty old",
+    "th": "ชิฟตี้ old",
+    "fr": "Futée old"
   },
   {
     "id": "c908",
-    "name": "Papillon"
+    "name": "Papillon",
+    "ko": "파피용",
+    "jp": "パピヨン",
+    "tw": "芭比瓏",
+    "cn": "芭比珑",
+    "de": "Papillon",
+    "th": "ปาปิยอง",
+    "fr": "Papillon"
   },
   {
     "name": "Hologram",
-    "id": "c910"
+    "id": "c910",
+    "ko": "홀로그램",
+    "jp": "ホログラム",
+    "tw": "全像圖",
+    "cn": "全息影像",
+    "de": "Hologramm",
+    "th": "โฮโลแกรม",
+    "fr": "Hologramme"
   },
   {
     "name": "Sweet Johnny",
@@ -4558,15 +4704,36 @@
   },
   {
     "name": "Johan",
-    "id": "c925"
+    "id": "c925",
+    "ko": "요한",
+    "jp": "ヨハン",
+    "tw": "約翰",
+    "cn": "约翰",
+    "de": "Johan",
+    "th": "โจฮัน",
+    "fr": "Johan"
   },
   {
     "name": "Einkk",
-    "id": "c928"
+    "id": "c928",
+    "ko": "잉크",
+    "jp": "インク",
+    "tw": "英克",
+    "cn": "英克",
+    "de": "Einkk",
+    "th": "อิงค์",
+    "fr": "Einkk"
   },
   {
     "name": "Cecil",
-    "id": "c929"
+    "id": "c929",
+    "ko": "세실",
+    "jp": "セシル",
+    "tw": "塞西爾",
+    "cn": "塞西尔",
+    "de": "Cecilia",
+    "th": "เซซิล",
+    "fr": "Cecil"
   },
   {
     "name": "Beatrice",
@@ -4697,7 +4864,14 @@
   },
   {
     "name": "Rose",
-    "id": "c971"
+    "id": "c971",
+    "ko": "장화",
+    "jp": "薔花",
+    "tw": "薔花",
+    "cn": "蔷花",
+    "de": "Rosie",
+    "th": "โรส",
+    "fr": "Rose"
   },
   {
     "name": "Rose - Mirror",
@@ -4808,7 +4982,14 @@
   },
   {
     "name": "Mecha Shifty",
-    "id": "c993"
+    "id": "c993",
+    "cn": "机甲谢芙蒂",
+    "ko": "메카 시프티",
+    "jp": "メカシフティー",
+    "tw": "機甲謝芙蒂",
+    "de": "Mecha-Shifty",
+    "th": "เมกะชิฟตี้",
+    "fr": "Mecha Futée"
   },
   {
     "name": "Rapi",
@@ -4983,7 +5164,14 @@
   },
   {
     "name": "Mustang",
-    "id": "c9022"
+    "id": "c9022",
+    "ko": "머스탱",
+    "jp": "マスタング",
+    "tw": "馬士丁",
+    "cn": "马士丁",
+    "de": "Mustang",
+    "th": "มัสแตง",
+    "fr": "Mustang"
   },
   {
     "name": "Hanson",
@@ -5006,23 +5194,30 @@
     "id": "c9028"
   },
   {
-    "name": "Laplace",
+    "name": "Laplace (Human)",
     "id": "c9029",
-    "ko": "라플라스",
-    "jp": "ラプラス",
-    "tw": "拉普拉斯",
-    "cn": "拉普拉斯",
-    "de": "Laplace",
-    "th": "ลาปลาซ",
-    "fr": "Laplace"
+    "ko": "라플라스 (인간)",
+    "jp": "ラプラス（人間）",
+    "tw": "拉普拉斯（人類）",
+    "cn": "拉普拉斯（人类）",
+    "de": "Laplace (Mensch)",
+    "th": "ลาปลาซ (มนุษย์)",
+    "fr": "Laplace (Humaine)"
   },
   {
     "name": "Enme",
     "id": "c9030"
   },
   {
-    "name": "Syuen",
-    "id": "c9031"
+    "name": "Syuen (Young)",
+    "id": "c9031",
+    "ko": "슈엔",
+    "jp": "シュエン",
+    "tw": "舒恩",
+    "cn": "舒恩",
+    "de": "Syuen",
+    "th": "ซูเอิน",
+    "fr": "Syuen"
   },
   {
     "name": "Jien",
@@ -5402,6 +5597,16 @@
     "f": "EventScene_projectmatis_02"
   },
   {
+    "name": "Great Villain Union",
+    "id": "greatvillainunion",
+    "f": "EventScene_greatvillainunion_01"
+  },
+  {
+    "name": "Coin Rush Showdown",
+    "id": "coinrushshowdown",
+    "f": "EventScene_coinrushshowdown_02"
+  },
+  {
     "name": "Smol Ade",
     "id": "smol_ade"
   },
@@ -5506,6 +5711,66 @@
     "name": "Smol Tia TTS",
     "id": "smol_tia",
     "f": "tts_c451_03"
+  },
+  {
+    "name": "Smol Queen (Makoto)",
+    "id": "ce009_char_01",
+    "f": "ce009_char_01"
+  },
+  {
+    "name": "Smol Yukiko",
+    "id": "ce009_char_02",
+    "f": "ce009_char_02"
+  },
+  {
+    "name": "Smol Aigis",
+    "id": "ce009_char_03",
+    "f": "ce009_char_03"
+  },
+  {
+    "name": "Smol Ade",
+    "id": "ce009_enemy_ade",
+    "f": "ce009_enemy_ade"
+  },
+  {
+    "name": "Smol Delta",
+    "id": "ce009_enemy_delta",
+    "f": "ce009_enemy_delta"
+  },
+  {
+    "name": "Smol Miranda",
+    "id": "ce009_enemy_miranda",
+    "f": "ce009_enemy_miranda"
+  },
+  {
+    "name": "Smol Phantom",
+    "id": "ce009_enemy_phantom",
+    "f": "ce009_enemy_phantom"
+  },
+  {
+    "name": "Smol Poli",
+    "id": "ce009_enemy_poli",
+    "f": "ce009_enemy_poli"
+  },
+  {
+    "name": "Smol Quency",
+    "id": "ce009_enemy_quency",
+    "f": "ce009_enemy_quency"
+  },
+  {
+    "name": "Smol Johanna",
+    "id": "ce009_skill_01",
+    "f": "ce009_skill_01"
+  },
+  {
+    "name": "Smol Amaterasu",
+    "id": "ce009_skill_02",
+    "f": "ce009_skill_02"
+  },
+  {
+    "name": "Smol Athena",
+    "id": "ce009_skill_03",
+    "f": "ce009_skill_03"
   },
   {
     "name": "AZX Service Time 1",
