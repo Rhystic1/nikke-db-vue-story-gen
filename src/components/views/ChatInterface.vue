@@ -350,12 +350,12 @@
                 No counseling sessions are loaded.
               </div>
               <div v-else class="presets-list">
-                <div style="padding: 0 4px 8px; color: #888; font-size: 12px; line-height: 1.4">
-                  Each session replays on its own. Stop and type to leave the script. After the last line, the next message uses the model.
-                </div>
-                <section v-for="character in counselingMenuEntries" :key="character.id">
-                  <div style="font-weight: 600; color: #e0e0e0; margin: 4px 4px 8px">{{ character.name }}</div>
-                  <div class="presets-list">
+                <section v-for="character in counselingMenuEntries" :key="character.id" class="counseling-character-group">
+                  <button type="button" class="counseling-character" :aria-expanded="isCounselingCharacterOpen(character.id)" @click="toggleCounselingCharacter(character.id)">
+                    <span>{{ character.name }}</span>
+                    <n-icon size="16" :class="['counseling-character-chevron', { open: isCounselingCharacterOpen(character.id) }]"><ChevronRight /></n-icon>
+                  </button>
+                  <div v-if="isCounselingCharacterOpen(character.id)" class="counseling-sessions">
                     <div v-for="counselingSession in character.sessions" :key="counselingSession.id" class="preset-item">
                       <div class="preset-info">
                         <div class="preset-name-row">
@@ -486,7 +486,7 @@
       :nikkeDisplayedText="nikkeDisplayedText"
       :nikkeSpeakerColor="nikkeSpeakerColor"
       :gameChoices="gameChoices"
-      @stop="stopGeneration"
+      @stop="closeNikkeOverlay"
       @game-choice="handleGameChoice"
     />
 
@@ -1017,7 +1017,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, type Ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useMarket } from '@/stores/market'
-import { Settings, Help, Save, Upload, TrashCan, Reset, Renew, Draggable, Maximize, TextScale, Bookmark, Document, OverflowMenuHorizontal, Send, Stop, Play, Close } from '@vicons/carbon'
+import { Settings, Help, Save, Upload, TrashCan, Reset, Renew, Draggable, Maximize, TextScale, Bookmark, Document, OverflowMenuHorizontal, Send, Stop, Play, Close, ChevronRight } from '@vicons/carbon'
 import { NIcon, NButton, NInput, NDrawer, NDrawerContent, NForm, NFormItem, NSelect, NSwitch, NPopover, NAlert, NSpin, NCheckbox, NTag, NModal, NPopconfirm } from 'naive-ui'
 import l2d from '@/utils/json/l2d.json'
 import localCharacterProfiles from '@/utils/json/characterProfiles.json'
@@ -1160,7 +1160,9 @@ const realisticModeEnabled = ref(localStorage.getItem('nikke_realistic_mode_enab
 const userInput = ref('')
 const isLoading = ref(false)
 const counselingActive = ref(false)
+const counselingPhase = ref<'playing' | 'ended' | null>(null)
 let counselingToken = 0
+let ignoreContinueUntil = 0
 const isGenerating = ref(false)
 const loadingStatus = ref('')
 const isStopped = ref(false)
@@ -1203,11 +1205,24 @@ const OVERLAP_TURNS = 3
 // Story/Roleplay character roster
 const characterCatalog = buildCharacterCatalog()
 const counselingMenuEntries = computed(() => counselingMenu(counselingCatalog))
+const openCounselingCharacterIds = ref<string[]>([])
 validateAnimationOverrides()
 const rosterRows = ref<StoryCharacterEntry[]>([])
 const showRosterList = ref(false)
 const showMobileOverflowMenu = ref(false)
 const showSummaryModal = ref(false)
+
+const isCounselingCharacterOpen = (characterId: string) => openCounselingCharacterIds.value.includes(characterId)
+
+const toggleCounselingCharacter = (characterId: string) => {
+  if (isCounselingCharacterOpen(characterId)) {
+    openCounselingCharacterIds.value = openCounselingCharacterIds.value.filter((id) => id !== characterId)
+
+    return
+  }
+
+  openCounselingCharacterIds.value = openCounselingCharacterIds.value.concat(characterId)
+}
 
 const toggleMobileOverflowMenu = () => {
   showMobileOverflowMenu.value = !showMobileOverflowMenu.value
@@ -2792,12 +2807,31 @@ const regenerateResponse = async () => {
   }
 }
 
+const armCloseWithoutContinue = () => {
+  ignoreContinueUntil = Date.now() + 500
+}
+
 const abortCounselingPlayback = () => {
   counselingToken += 1
   counselingActive.value = false
+  counselingPhase.value = null
   if (isTyping.value) stopTypewriter()
   clearGameChoiceState({ resolvePendingWait: true })
   abortCurrentPlaybackForChoice.value = false
+}
+
+const leaveCounselingReplay = () => {
+  if (!counselingActive.value && counselingPhase.value === null) {
+
+    return
+  }
+
+  abortCounselingPlayback()
+  isLoading.value = false
+  waitingForNext.value = false
+  nikkeOverlayVisible.value = false
+  selectedMessageIndex.value = null
+  armCloseWithoutContinue()
 }
 
 const stopGeneration = () => {
@@ -2821,9 +2855,29 @@ const stopGeneration = () => {
   clearGameChoiceState({ resolvePendingWait: true })
 }
 
+const closeNikkeOverlay = () => {
+  nikkeTapState.startedOnInteractive = true
+  const scripted = counselingActive.value || counselingPhase.value !== null
+  stopGeneration()
+  if (scripted) armCloseWithoutContinue()
+}
+
 const nextAction = () => {
+  if (counselingPhase.value === 'ended') {
+    leaveCounselingReplay()
+
+    return
+  }
+
+  if (Date.now() < ignoreContinueUntil) {
+    ignoreContinueUntil = 0
+
+    return
+  }
+
   // Never allow advancing while game choices are pending/visible.
   if (gameChoices.value.length > 0 || choicesAwaitingReveal.value) {
+
     return
   }
   if (nextActionResolver) {
@@ -3922,6 +3976,7 @@ const executeAction = async (data: any) => {
 const runCounselingSession = async (counselingSession: CounselingSession) => {
   const token = ++counselingToken
   counselingActive.value = true
+  counselingPhase.value = 'playing'
   isStopped.value = false
 
   try {
@@ -3932,6 +3987,10 @@ const runCounselingSession = async (counselingSession: CounselingSession) => {
 
       const counselingLine = counselingLineById(counselingSession, lineId)
       if (!counselingLine) return
+
+      if (!('choices' in counselingLine) && !counselingLine.next) {
+        counselingPhase.value = 'ended'
+      }
 
       isStopped.value = false
       isLoading.value = true
@@ -3958,7 +4017,8 @@ const runCounselingSession = async (counselingSession: CounselingSession) => {
     }
   } finally {
     if (token === counselingToken) {
-      counselingActive.value = false
+      counselingPhase.value = 'ended'
+      counselingActive.value = true
       isLoading.value = false
       waitingForNext.value = false
     }
@@ -4810,6 +4870,45 @@ const saveSummaryEdit = () => {
   gap: 12px;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.counseling-character-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.counseling-character {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.counseling-character-chevron {
+  color: #aaa;
+  transition: transform 0.15s ease;
+
+  &.open {
+    transform: rotate(90deg);
+  }
+}
+
+.counseling-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 12px;
 }
 
 .preset-item {
