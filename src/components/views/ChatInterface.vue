@@ -4055,6 +4055,9 @@ const startCounselingSession = (sessionId: string) => {
   market.live2d.clearActiveBackground()
   selectedMessageIndex.value = null
   mode.value = 'game'
+  useCustomPlayerCharacter.value = false
+  realisticModeEnabled.value = false
+  debugModeEnabled.value = false
   if (chatMode.value !== 'nikke') chatMode.value = 'nikke'
   rosterRows.value = [{
     key: `counseling-${found.session.id}`,
