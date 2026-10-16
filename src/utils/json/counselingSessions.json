@@ -1,0 +1,2059 @@
+{
+  "characters": [
+    {
+      "name": "Chime",
+      "id": "c331",
+      "selection": "base::Chime",
+      "sessions": [
+        {
+          "id": "d_counseling_chime_01",
+          "label": "01",
+          "blurb": "Rejoice! Thou art now a subject of the Crown Kingdom.",
+          "openingLineId": "d_counseling_chime_01_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_01_1",
+              "text": "Rejoice! Thou art now a subject of the Crown Kingdom.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_01_2"
+            },
+            {
+              "id": "d_counseling_chime_01_2",
+              "text": "Hmm? Didst thou think any mere knave could earn such honor?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Huh? I thought anyone could become one.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_01_5"
+                },
+                {
+                  "text": "Thanks, it's an honor.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_01_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_01_5",
+              "text": "How could it be so?",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_01_6"
+            },
+            {
+              "id": "d_counseling_chime_01_6",
+              "text": "Only after one hath received the grace of Her Highness and myself",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_01_7"
+            },
+            {
+              "id": "d_counseling_chime_01_7",
+              "text": "shalt they be granted the right to become a subject of the Crown Kingdom.",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_01_10"
+            },
+            {
+              "id": "d_counseling_chime_01_8",
+              "text": "Aye, that is the attitude of a true subject.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_01_9"
+            },
+            {
+              "id": "d_counseling_chime_01_9",
+              "text": "Live always in gratitude for the boundless grace of Her Highness!",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_01_10"
+            },
+            {
+              "id": "d_counseling_chime_01_10",
+              "text": "Chime and I talk about the subjects of the Crown Kingdom.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_02",
+          "label": "02",
+          "blurb": "Truly, the more I behold Her Highness, the more splendid she seemeth.",
+          "openingLineId": "d_counseling_chime_02_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_02_1",
+              "text": "Truly, the more I behold Her Highness, the more splendid she seemeth.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "choices": [
+                {
+                  "text": "You mean the way she protects you?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_02_4"
+                },
+                {
+                  "text": "You mean the way she craves food?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_02_9"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_02_4",
+              "text": "Aye, 'tis exactly so!",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_02_5"
+            },
+            {
+              "id": "d_counseling_chime_02_5",
+              "text": "When Her Highness doth stand afore me, shielding me...",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_02_6"
+            },
+            {
+              "id": "d_counseling_chime_02_6",
+              "text": "Knowest thou how magnificently she doth shine, how steadfastly my heart is eased?",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_02_7"
+            },
+            {
+              "id": "d_counseling_chime_02_7",
+              "text": "Nay, \"magnificently\" doth scarce suffice!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_02_8"
+            },
+            {
+              "id": "d_counseling_chime_02_8",
+              "text": "She is naught but the light itself!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_02_13"
+            },
+            {
+              "id": "d_counseling_chime_02_9",
+              "text": "R-Rapscallion!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_02_10"
+            },
+            {
+              "id": "d_counseling_chime_02_10",
+              "text": "How dare thou speak such blasphemy?!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_02_11"
+            },
+            {
+              "id": "d_counseling_chime_02_11",
+              "text": "Her Highness doth not covet food!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_02_12"
+            },
+            {
+              "id": "d_counseling_chime_02_12",
+              "text": "She... doth merely relish it!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_02_13"
+            },
+            {
+              "id": "d_counseling_chime_02_13",
+              "text": "Chime and I talk about when Crown looks most magnificent.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_03",
+          "label": "03",
+          "blurb": "I possess a most extraordinary talent.",
+          "openingLineId": "d_counseling_chime_03_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_03_1",
+              "text": "I possess a most extraordinary talent.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_03_2"
+            },
+            {
+              "id": "d_counseling_chime_03_2",
+              "text": "Canst thou guess what it be?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Your ability to assist Crown flawlessly?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_03_5"
+                },
+                {
+                  "text": "Your quick reflexes?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_03_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_03_5",
+              "text": "That can scarce be called a talent.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_03_6"
+            },
+            {
+              "id": "d_counseling_chime_03_6",
+              "text": "For a true aide, that much is but the very barest of basics.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_03_7"
+            },
+            {
+              "id": "d_counseling_chime_03_7",
+              "text": "Even thou wouldst do well to watch and learn, I say.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_03_12"
+            },
+            {
+              "id": "d_counseling_chime_03_8",
+              "text": "Hoho! Thou guessed it straight away.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_03_9"
+            },
+            {
+              "id": "d_counseling_chime_03_9",
+              "text": "Truly, thou hast an eye for such things.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_03_10"
+            },
+            {
+              "id": "d_counseling_chime_03_10",
+              "text": "'Tis not yet too late.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_03_11"
+            },
+            {
+              "id": "d_counseling_chime_03_11",
+              "text": "Shouldst thou wish to enter our kingdom as its advisor, thou shalt be welcomed at any hour!",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_03_12"
+            },
+            {
+              "id": "d_counseling_chime_03_12",
+              "text": "Chime and I talk about her abilities.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_04",
+          "label": "04",
+          "blurb": "*Groooowl*",
+          "openingLineId": "d_counseling_chime_04_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_04_1",
+              "text": "*Groooowl*",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": false,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_04_2"
+            },
+            {
+              "id": "d_counseling_chime_04_2",
+              "text": "A-ahem!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_04_3"
+            },
+            {
+              "id": "d_counseling_chime_04_3",
+              "text": "Have ye aught to eat?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Hand her some Splendamin.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_04_6"
+                },
+                {
+                  "text": "Hand her a chocolate bar.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_04_11"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_04_6",
+              "text": "Th-this is... Splendamin!",
+              "character": "c331",
+              "animation": "angry_03",
+              "speaking": true,
+              "next": "d_counseling_chime_04_7"
+            },
+            {
+              "id": "d_counseling_chime_04_7",
+              "text": "Hah, I shall not partake thereof!",
+              "character": "c331",
+              "animation": "angry_03",
+              "speaking": true,
+              "next": "d_counseling_chime_04_8"
+            },
+            {
+              "id": "d_counseling_chime_04_8",
+              "text": "Then, what about this?",
+              "character": "c331",
+              "animation": "angry_03",
+              "speaking": false,
+              "next": "d_counseling_chime_04_9"
+            },
+            {
+              "id": "d_counseling_chime_04_9",
+              "text": "I hand Chime a chocolate bar.",
+              "character": "c331",
+              "animation": "angry_03",
+              "speaking": false,
+              "next": "d_counseling_chime_04_10"
+            },
+            {
+              "id": "d_counseling_chime_04_10",
+              "text": "... I shall partake.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_04_14"
+            },
+            {
+              "id": "d_counseling_chime_04_11",
+              "text": "I-is it truly fine to bestow upon me something so precious?",
+              "character": "c331",
+              "animation": "shy",
+              "speaking": true,
+              "next": "d_counseling_chime_04_12"
+            },
+            {
+              "id": "d_counseling_chime_04_12",
+              "text": "... It hath been many years since I last tasted a chocolate bar.",
+              "character": "c331",
+              "animation": "shy",
+              "speaking": true,
+              "next": "d_counseling_chime_04_13"
+            },
+            {
+              "id": "d_counseling_chime_04_13",
+              "text": "My thanks, I shall enjoy it well.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_04_14"
+            },
+            {
+              "id": "d_counseling_chime_04_14",
+              "text": "Chime and I share a chocolate bar.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_05",
+          "label": "05",
+          "blurb": "Hm? What art thou doing there?",
+          "openingLineId": "d_counseling_chime_05_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_05_1",
+              "text": "Hm? What art thou doing there?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_05_2"
+            },
+            {
+              "id": "d_counseling_chime_05_2",
+              "text": "Ah!",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_05_3"
+            },
+            {
+              "id": "d_counseling_chime_05_3",
+              "text": "A cell phone, is it?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_05_4"
+            },
+            {
+              "id": "d_counseling_chime_05_4",
+              "text": "Hoho, how curious.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_05_5"
+            },
+            {
+              "id": "d_counseling_chime_05_5",
+              "text": "Chime's intense staring makes me feel uncomfortable.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": false,
+              "choices": [
+                {
+                  "text": "Hand Chime the phone.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_05_8"
+                },
+                {
+                  "text": "Show Chime how to use the phone.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_05_12"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_05_8",
+              "text": "Oh? Many thanks.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_05_9"
+            },
+            {
+              "id": "d_counseling_chime_05_9",
+              "text": "Hmm...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_05_10"
+            },
+            {
+              "id": "d_counseling_chime_05_10",
+              "text": "...",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_05_11"
+            },
+            {
+              "id": "d_counseling_chime_05_11",
+              "text": "but how doth one handle this contraption again...?",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_05_17"
+            },
+            {
+              "id": "d_counseling_chime_05_12",
+              "text": "Oooh.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_05_13"
+            },
+            {
+              "id": "d_counseling_chime_05_13",
+              "text": "Ooohhh!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_05_14"
+            },
+            {
+              "id": "d_counseling_chime_05_14",
+              "text": "So many new functions hath sprung up since I last laid eyes upon it.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_05_15"
+            },
+            {
+              "id": "d_counseling_chime_05_15",
+              "text": "Truly wondrous.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_05_16"
+            },
+            {
+              "id": "d_counseling_chime_05_16",
+              "text": "Pray, show me what other marvels it holds.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_05_17"
+            },
+            {
+              "id": "d_counseling_chime_05_17",
+              "text": "I show Chime the many functions of the cell phone.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_06",
+          "label": "06",
+          "blurb": "Mark my words, Rapscallion...",
+          "openingLineId": "d_counseling_chime_06_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_06_1",
+              "text": "Mark my words, Rapscallion...",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_06_2"
+            },
+            {
+              "id": "d_counseling_chime_06_2",
+              "text": "The day shall come when I tell thee of our grand mission.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Okay, I'll wait until then.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_06_5"
+                },
+                {
+                  "text": "Why not tell me now?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_06_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_06_5",
+              "text": "Oho,",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_06_6"
+            },
+            {
+              "id": "d_counseling_chime_06_6",
+              "text": "thy answer is brisk and most pleasing.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_06_7"
+            },
+            {
+              "id": "d_counseling_chime_06_7",
+              "text": "Keep thy spirit steadfast henceforth, and let it never falter.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_06_11"
+            },
+            {
+              "id": "d_counseling_chime_06_8",
+              "text": "N-nay, not now!",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_06_9"
+            },
+            {
+              "id": "d_counseling_chime_06_9",
+              "text": "All things have their own time!",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_06_10"
+            },
+            {
+              "id": "d_counseling_chime_06_10",
+              "text": "Thou must wait a little longer.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_06_11"
+            },
+            {
+              "id": "d_counseling_chime_06_11",
+              "text": "Chime and I have a serious conversation.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_07",
+          "label": "07",
+          "blurb": "I have heard that thou dwellest in a place called the Outpost.",
+          "openingLineId": "d_counseling_chime_07_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_07_1",
+              "text": "I have heard that thou dwellest in a place called the Outpost.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_07_2"
+            },
+            {
+              "id": "d_counseling_chime_07_2",
+              "text": "How is it there? Is it livable, or doth it leave much to be desired?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "How about coming over and checking it out yourself?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_07_5"
+                },
+                {
+                  "text": "It's not too bad.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_07_10"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_07_5",
+              "text": "In person, thou sayest?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_07_6"
+            },
+            {
+              "id": "d_counseling_chime_07_6",
+              "text": "Thou wouldst invite me to thine dwelling?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_07_7"
+            },
+            {
+              "id": "d_counseling_chime_07_7",
+              "text": "...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_07_8"
+            },
+            {
+              "id": "d_counseling_chime_07_8",
+              "text": "Someday, I shall surely drop by with Her Highness.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_07_9"
+            },
+            {
+              "id": "d_counseling_chime_07_9",
+              "text": "Methinks I shall indeed set foot in your humble dwelling one day.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_07_12"
+            },
+            {
+              "id": "d_counseling_chime_07_10",
+              "text": "Rapscallion!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_07_11"
+            },
+            {
+              "id": "d_counseling_chime_07_11",
+              "text": "Speak not to me so half-heartedly!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_07_12"
+            },
+            {
+              "id": "d_counseling_chime_07_12",
+              "text": "Chime and I talk about the Outpost.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_08",
+          "label": "08",
+          "blurb": "Well then, the remaining days be...",
+          "openingLineId": "d_counseling_chime_08_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_08_1",
+              "text": "Well then, the remaining days be...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_08_2"
+            },
+            {
+              "id": "d_counseling_chime_08_2",
+              "text": "Chime spins in place, muttering to herself.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": false,
+              "next": "d_counseling_chime_08_3"
+            },
+            {
+              "id": "d_counseling_chime_08_3",
+              "text": "I...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": false,
+              "choices": [
+                {
+                  "text": "Strike up a conversation.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_08_6"
+                },
+                {
+                  "text": "Wait for her to notice me.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_08_9"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_08_6",
+              "text": "Silence, Rapscallion!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_08_7"
+            },
+            {
+              "id": "d_counseling_chime_08_7",
+              "text": "I was amidst most important calculations.",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_08_8"
+            },
+            {
+              "id": "d_counseling_chime_08_8",
+              "text": "Now, on thy account, must I begin again from the very start!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_08_14"
+            },
+            {
+              "id": "d_counseling_chime_08_9",
+              "text": "A while later.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": false,
+              "next": "d_counseling_chime_08_10"
+            },
+            {
+              "id": "d_counseling_chime_08_10",
+              "text": "Phew... 'tis finished at last.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_08_11"
+            },
+            {
+              "id": "d_counseling_chime_08_11",
+              "text": "Oh? Thou hast been waiting for me?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_08_12"
+            },
+            {
+              "id": "d_counseling_chime_08_12",
+              "text": "My thanks for thy patience.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_08_13"
+            },
+            {
+              "id": "d_counseling_chime_08_13",
+              "text": "I was in the midst of some very important calculations, thou see'st.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_08_14"
+            },
+            {
+              "id": "d_counseling_chime_08_14",
+              "text": "I have a chat with Chime once she's done with her calculations.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_09",
+          "label": "09",
+          "blurb": "Whene'er I traverse the surface,",
+          "openingLineId": "d_counseling_chime_09_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_09_1",
+              "text": "Whene'er I traverse the surface,",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_09_2"
+            },
+            {
+              "id": "d_counseling_chime_09_2",
+              "text": "my meals are ever so paltry.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_09_3"
+            },
+            {
+              "id": "d_counseling_chime_09_3",
+              "text": "I long to return posthaste to the kingdom and partake of a proper feast.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Can you actually get a proper meal there?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_09_6"
+                },
+                {
+                  "text": "Want me to pass you some Splendamin?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_09_10"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_09_6",
+              "text": "'Tis of course.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_09_7"
+            },
+            {
+              "id": "d_counseling_chime_09_7",
+              "text": "We cook with that which we grow ourselves,",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_09_8"
+            },
+            {
+              "id": "d_counseling_chime_09_8",
+              "text": "or with whatever we hunt and gather.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_09_9"
+            },
+            {
+              "id": "d_counseling_chime_09_9",
+              "text": "Forsooth, Her Highness taketh greatest delight in the dishes I prepare!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_09_12"
+            },
+            {
+              "id": "d_counseling_chime_09_10",
+              "text": "I thank thee,",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_09_11"
+            },
+            {
+              "id": "d_counseling_chime_09_11",
+              "text": "but Splendamin is not to my taste.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_09_12"
+            },
+            {
+              "id": "d_counseling_chime_09_12",
+              "text": "Chime and I talk about the meals in the Crown Kingdom.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_10",
+          "label": "10",
+          "blurb": "\"He who does not work shall not eat,\" so the saying goes.",
+          "openingLineId": "d_counseling_chime_10_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_10_1",
+              "text": "\"He who does not work shall not eat,\" so the saying goes.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_10_2"
+            },
+            {
+              "id": "d_counseling_chime_10_2",
+              "text": "What thinkest thou of this?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "So, does that mean Crown's going hungry?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_10_5"
+                },
+                {
+                  "text": "Got it, I'll work hard.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_10_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_10_5",
+              "text": "What? What nonsense speakest thou?",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_10_6"
+            },
+            {
+              "id": "d_counseling_chime_10_6",
+              "text": "The mere fact that Her Highness is there",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_10_7"
+            },
+            {
+              "id": "d_counseling_chime_10_7",
+              "text": "doth prove her hard work!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_10_11"
+            },
+            {
+              "id": "d_counseling_chime_10_8",
+              "text": "As expected, thou art quick-witted.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_10_9"
+            },
+            {
+              "id": "d_counseling_chime_10_9",
+              "text": "Thou pleasest me greatly.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_10_10"
+            },
+            {
+              "id": "d_counseling_chime_10_10",
+              "text": "Now, let us be off to work!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_10_11"
+            },
+            {
+              "id": "d_counseling_chime_10_11",
+              "text": "After our conversation ends, I help Chime with her work.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_11",
+          "label": "11",
+          "blurb": "Pray tell, Rapscallion, between Her Highness and me,",
+          "openingLineId": "d_counseling_chime_11_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_11_1",
+              "text": "Pray tell, Rapscallion, between Her Highness and me,",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_11_2"
+            },
+            {
+              "id": "d_counseling_chime_11_2",
+              "text": "who thinkest thou greater?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Crown.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_11_5"
+                },
+                {
+                  "text": "You.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_11_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_11_5",
+              "text": "Aye, 'tis as thou sayest.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_11_6"
+            },
+            {
+              "id": "d_counseling_chime_11_6",
+              "text": "Her Highness is most magnificent,",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_11_7"
+            },
+            {
+              "id": "d_counseling_chime_11_7",
+              "text": "so never forget that.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_11_10"
+            },
+            {
+              "id": "d_counseling_chime_11_8",
+              "text": "Rapscallion!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_11_9"
+            },
+            {
+              "id": "d_counseling_chime_11_9",
+              "text": "Speak not such falsehoods with bold confidence!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_11_10"
+            },
+            {
+              "id": "d_counseling_chime_11_10",
+              "text": "Chime begins to lavish praise on Crown.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_12",
+          "label": "12",
+          "blurb": "Oh my... the sky hath turned all cloudy.",
+          "openingLineId": "d_counseling_chime_12_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_12_1",
+              "text": "Oh my... the sky hath turned all cloudy.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_12_2"
+            },
+            {
+              "id": "d_counseling_chime_12_2",
+              "text": "Methinks we are in for a downpour, I daresay.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "I'm sure it'll feel nice and refreshing.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_12_5"
+                },
+                {
+                  "text": "Best to avoid it.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_12_9"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_12_5",
+              "text": "Surely thou dost not mean to say...",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_12_6"
+            },
+            {
+              "id": "d_counseling_chime_12_6",
+              "text": "thou enjoyest being drenched in the rain?",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_12_7"
+            },
+            {
+              "id": "d_counseling_chime_12_7",
+              "text": "What a curious taste thou hast.",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_12_8"
+            },
+            {
+              "id": "d_counseling_chime_12_8",
+              "text": "As for me, I shall seek shelter; I've no fondness for the rain.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_12_12"
+            },
+            {
+              "id": "d_counseling_chime_12_9",
+              "text": "Aye,",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_12_10"
+            },
+            {
+              "id": "d_counseling_chime_12_10",
+              "text": "'tis most vexing to be soaked for no reason.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_12_11"
+            },
+            {
+              "id": "d_counseling_chime_12_11",
+              "text": "We must find shelter from this rain forthwith.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_12_12"
+            },
+            {
+              "id": "d_counseling_chime_12_12",
+              "text": "A little later, Chime and I watch the pouring rain together.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_13",
+          "label": "13",
+          "blurb": "Rapscallion, art thou skilled in battle?",
+          "openingLineId": "d_counseling_chime_13_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_13_1",
+              "text": "Rapscallion, art thou skilled in battle?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "choices": [
+                {
+                  "text": "Yeah, I am.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_13_4"
+                },
+                {
+                  "text": "No, not really.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_13_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_13_4",
+              "text": "Oh? Is that truly so?",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_13_5"
+            },
+            {
+              "id": "d_counseling_chime_13_5",
+              "text": "As I thought, thou art indeed capable!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_13_6"
+            },
+            {
+              "id": "d_counseling_chime_13_6",
+              "text": "Pray, tell me thy secret to fighting well.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_13_7"
+            },
+            {
+              "id": "d_counseling_chime_13_7",
+              "text": "I shall reward thee handsomely later.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_13_11"
+            },
+            {
+              "id": "d_counseling_chime_13_8",
+              "text": "No wonder...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_13_9"
+            },
+            {
+              "id": "d_counseling_chime_13_9",
+              "text": "I oft wondered why thou didst hide behind all in battle...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_13_10"
+            },
+            {
+              "id": "d_counseling_chime_13_10",
+              "text": "so 'tis because thou art poor at fighting, is it not?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_13_11"
+            },
+            {
+              "id": "d_counseling_chime_13_11",
+              "text": "Chime and I discuss ways to fight better.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_14",
+          "label": "14",
+          "blurb": "Hm?",
+          "openingLineId": "d_counseling_chime_14_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_14_1",
+              "text": "Hm?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_14_2"
+            },
+            {
+              "id": "d_counseling_chime_14_2",
+              "text": "Why dost thou stare at me so?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "I just think you're cute.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_14_5"
+                },
+                {
+                  "text": "I was just fascinated by the bell on your helmet.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_14_7"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_14_5",
+              "text": "Thou darest tease me for being tiny?!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_14_6"
+            },
+            {
+              "id": "d_counseling_chime_14_6",
+              "text": "How audacious!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_14_10"
+            },
+            {
+              "id": "d_counseling_chime_14_7",
+              "text": "Oh, this?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_14_8"
+            },
+            {
+              "id": "d_counseling_chime_14_8",
+              "text": "'Tis useful in so many ways.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_14_9"
+            },
+            {
+              "id": "d_counseling_chime_14_9",
+              "text": "Wouldst thou try it thyself?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "next": "d_counseling_chime_14_10"
+            },
+            {
+              "id": "d_counseling_chime_14_10",
+              "text": "Chime and I while away the time with idle chatter.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_15",
+          "label": "15",
+          "blurb": "The noble speech of Her Highness doth stir the hearts of all who hear it.",
+          "openingLineId": "d_counseling_chime_15_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_15_1",
+              "text": "The noble speech of Her Highness doth stir the hearts of all who hear it.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_15_2"
+            },
+            {
+              "id": "d_counseling_chime_15_2",
+              "text": "Dost thou not agree?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Yeah... she's definitely dignified.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_15_5"
+                },
+                {
+                  "text": "She messes up quite a few words, doesn't she?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_15_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_15_5",
+              "text": "Indeed,",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_15_6"
+            },
+            {
+              "id": "d_counseling_chime_15_6",
+              "text": "the dignity of Her Highness is the very force that upholds our kingdom.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_15_7"
+            },
+            {
+              "id": "d_counseling_chime_15_7",
+              "text": "And thou, Rapscallion, art at last nearing the rank of a true subject.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_15_10"
+            },
+            {
+              "id": "d_counseling_chime_15_8",
+              "text": "Wh-what blasphemy is this?!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_15_9"
+            },
+            {
+              "id": "d_counseling_chime_15_9",
+              "text": "Take back thy words this instant, or face my wrath!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_15_10"
+            },
+            {
+              "id": "d_counseling_chime_15_10",
+              "text": "I try imitating Crown's way of speaking with Chime.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_16",
+          "label": "16",
+          "blurb": "Shall the day ever come when we reclaim the surface, I wonder?",
+          "openingLineId": "d_counseling_chime_16_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_16_1",
+              "text": "Shall the day ever come when we reclaim the surface, I wonder?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_16_2"
+            },
+            {
+              "id": "d_counseling_chime_16_2",
+              "text": "At times, I cannot help but feel a twinge of unease, alas.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "It'll come, I'm sure of it.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_16_5"
+                },
+                {
+                  "text": "I can't help but feel uneasy too.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_16_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_16_5",
+              "text": "... Indeed!",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_16_6"
+            },
+            {
+              "id": "d_counseling_chime_16_6",
+              "text": "They say the world bends to one's beliefs, dost it not?",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_16_7"
+            },
+            {
+              "id": "d_counseling_chime_16_7",
+              "text": "Henceforth, I too shall hold fast to mine own faith!",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_16_11"
+            },
+            {
+              "id": "d_counseling_chime_16_8",
+              "text": "What? Hmm...",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_16_9"
+            },
+            {
+              "id": "d_counseling_chime_16_9",
+              "text": "I spoke naught but foolish words.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_16_10"
+            },
+            {
+              "id": "d_counseling_chime_16_10",
+              "text": "Let it be as if you heard naught.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_16_11"
+            },
+            {
+              "id": "d_counseling_chime_16_11",
+              "text": "Chime and I dream of reclaiming the surface.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_17",
+          "label": "17",
+          "blurb": "I'm thinking of giving Her Highness a gift.",
+          "openingLineId": "d_counseling_chime_17_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_17_1",
+              "text": "I'm thinking of giving Her Highness a gift.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_17_2"
+            },
+            {
+              "id": "d_counseling_chime_17_2",
+              "text": "What thinkest thou might suit her best?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Isn't that something you'd know best?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_17_5"
+                },
+                {
+                  "text": "Hmm... wouldn't something simple be fine?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_17_8"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_17_5",
+              "text": "Hah! 'Tis needless to say!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_17_6"
+            },
+            {
+              "id": "d_counseling_chime_17_6",
+              "text": "None knoweth Her Highness better than I, mark my words!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_17_7"
+            },
+            {
+              "id": "d_counseling_chime_17_7",
+              "text": "I shall present to her a gift most magnificent. Just thou wait and see!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_17_11"
+            },
+            {
+              "id": "d_counseling_chime_17_8",
+              "text": "Rapscallion!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_17_9"
+            },
+            {
+              "id": "d_counseling_chime_17_9",
+              "text": "Thy face screams of vexation!",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_17_10"
+            },
+            {
+              "id": "d_counseling_chime_17_10",
+              "text": "Canst thou not think in earnest, just this once?",
+              "character": "c331",
+              "animation": "angry_02",
+              "speaking": true,
+              "next": "d_counseling_chime_17_11"
+            },
+            {
+              "id": "d_counseling_chime_17_11",
+              "text": "Chime and I discuss potential gifts for Crown.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_18",
+          "label": "18",
+          "blurb": "Pray tell, what thinkest thou a kingdom to be?",
+          "openingLineId": "d_counseling_chime_18_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_18_1",
+              "text": "Pray tell, what thinkest thou a kingdom to be?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "choices": [
+                {
+                  "text": "A place where the subjects can live safely and in peace.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_18_4"
+                },
+                {
+                  "text": "Well... a place where people gather?",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_18_7"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_18_4",
+              "text": "Indeed.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_18_5"
+            },
+            {
+              "id": "d_counseling_chime_18_5",
+              "text": "Her Highness and I do toil without rest for that very cause.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_18_6"
+            },
+            {
+              "id": "d_counseling_chime_18_6",
+              "text": "I must confess, it doth warm my heart to see thee recognize it.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_18_9"
+            },
+            {
+              "id": "d_counseling_chime_18_7",
+              "text": "How could a kingdom be such a trifling thing?!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_18_8"
+            },
+            {
+              "id": "d_counseling_chime_18_8",
+              "text": "Thou hast much yet to learn.",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_18_9"
+            },
+            {
+              "id": "d_counseling_chime_18_9",
+              "text": "Chime and I have a deep discussion about what a kingdom is.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_19",
+          "label": "19",
+          "blurb": "I have scouted the area thoroughly,",
+          "openingLineId": "d_counseling_chime_19_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_19_1",
+              "text": "I have scouted the area thoroughly,",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_19_2"
+            },
+            {
+              "id": "d_counseling_chime_19_2",
+              "text": "yet there is little of value to be found.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "You've seen everything already? No way!",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_19_5"
+                },
+                {
+                  "text": "Already done? That was quick!",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_19_7"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_19_5",
+              "text": "Nonsense!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_19_6"
+            },
+            {
+              "id": "d_counseling_chime_19_6",
+              "text": "Dost thou accuse me of lying?",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_19_10"
+            },
+            {
+              "id": "d_counseling_chime_19_7",
+              "text": "Know ye not",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_19_8"
+            },
+            {
+              "id": "d_counseling_chime_19_8",
+              "text": "I possess the fleetest feet in all the kingdom?",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_19_9"
+            },
+            {
+              "id": "d_counseling_chime_19_9",
+              "text": "Even Her Highness doth oft marvel at them.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_19_10"
+            },
+            {
+              "id": "d_counseling_chime_19_10",
+              "text": "Chime proceeds to boast at length about how fast she is.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d_counseling_chime_20",
+          "label": "20",
+          "blurb": "We shall soon return to the Crown Kingdom.",
+          "openingLineId": "d_counseling_chime_20_1",
+          "lines": [
+            {
+              "id": "d_counseling_chime_20_1",
+              "text": "We shall soon return to the Crown Kingdom.",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "background": {
+                "key": "Desert_02"
+              },
+              "next": "d_counseling_chime_20_2"
+            },
+            {
+              "id": "d_counseling_chime_20_2",
+              "text": "Wilt thou come with us, Rapscallion?",
+              "character": "c331",
+              "animation": "idle",
+              "speaking": true,
+              "choices": [
+                {
+                  "text": "Hmm, maybe I will.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_20_5"
+                },
+                {
+                  "text": "Nah, not this time.",
+                  "type": "dialogue",
+                  "jumpTo": "d_counseling_chime_20_11"
+                }
+              ]
+            },
+            {
+              "id": "d_counseling_chime_20_5",
+              "text": "What? T-truly?",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_20_6"
+            },
+            {
+              "id": "d_counseling_chime_20_6",
+              "text": "I must inform Her Highness straightaway...!",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": true,
+              "next": "d_counseling_chime_20_7"
+            },
+            {
+              "id": "d_counseling_chime_20_7",
+              "text": "W-wait! I'm just kidding.",
+              "character": "c331",
+              "animation": "delight",
+              "speaking": false,
+              "next": "d_counseling_chime_20_8"
+            },
+            {
+              "id": "d_counseling_chime_20_8",
+              "text": "?!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_20_9"
+            },
+            {
+              "id": "d_counseling_chime_20_9",
+              "text": "Rapscallion! How darest thou make such a vile jest?!",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": true,
+              "next": "d_counseling_chime_20_10"
+            },
+            {
+              "id": "d_counseling_chime_20_10",
+              "text": "Sorry... I'll be sure to go next time if I get the chance.",
+              "character": "c331",
+              "animation": "angry",
+              "speaking": false,
+              "next": "d_counseling_chime_20_16"
+            },
+            {
+              "id": "d_counseling_chime_20_11",
+              "text": "Hmph. Ever the same answer when I inquire.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_20_12"
+            },
+            {
+              "id": "d_counseling_chime_20_12",
+              "text": "Is it for the sake of thy comrades, then?",
+              "character": "c331",
+              "animation": "void",
+              "speaking": true,
+              "next": "d_counseling_chime_20_13"
+            },
+            {
+              "id": "d_counseling_chime_20_13",
+              "text": "I nod my head.",
+              "character": "c331",
+              "animation": "void",
+              "speaking": false,
+              "next": "d_counseling_chime_20_14"
+            },
+            {
+              "id": "d_counseling_chime_20_14",
+              "text": "Well, if that be so, it cannot be helped.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_20_15"
+            },
+            {
+              "id": "d_counseling_chime_20_15",
+              "text": "But do thou be sure to visit us someday.",
+              "character": "c331",
+              "animation": "smile",
+              "speaking": true,
+              "next": "d_counseling_chime_20_16"
+            },
+            {
+              "id": "d_counseling_chime_20_16",
+              "text": "Chime departs with a regretful expression.",
+              "character": "none",
+              "animation": "idle",
+              "speaking": false,
+              "background": {
+                "key": "none"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
