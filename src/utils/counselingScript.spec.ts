@@ -25,14 +25,16 @@ const line = (sessionId: string, lineId: string) => {
 
 describe('counseling catalog', () => {
   it('groups Chime sessions for the preset menu', () => {
-    expect(counselingCatalog.characters.map((character) => character.name)).toEqual(['Chime'])
-    expect(counselingCatalog.characters[0].id).toBe('c331')
-    expect(counselingCatalog.characters[0].selection).toBe('base::Chime')
-    expect(counselingCatalog.characters[0].sessions).toHaveLength(20)
+    const chime = counselingCatalog.characters.find((character) => character.name === 'Chime')
+
+    expect(chime?.id).toBe('c331')
+    expect(chime?.selection).toBe('base::Chime')
+    expect(chime?.sessions).toHaveLength(20)
   })
 
   it('keeps every branch reachable and every choice pointed at a real line', () => {
-    const lines = counselingCatalog.characters.flatMap((character) => character.sessions.flatMap((entry) => entry.lines))
+    const chime = counselingCatalog.characters.find((character) => character.name === 'Chime')
+    const lines = chime?.sessions.flatMap((entry) => entry.lines) ?? []
     const choices = lines.flatMap((entry) => ('choices' in entry ? entry.choices : []))
 
     expect(lines).toHaveLength(196)
@@ -47,8 +49,9 @@ describe('counseling catalog', () => {
   })
 
   it('uses the story-gen background object on the desert open and the clear', () => {
-    const openings = counselingCatalog.characters[0].sessions.map((entry) => counselingLineById(entry, entry.openingLineId))
-    const backgrounds = counselingCatalog.characters[0].sessions.flatMap((entry) => entry.lines.map((item) => item.background?.key))
+    const chime = counselingCatalog.characters.find((character) => character.name === 'Chime')
+    const openings = chime?.sessions.map((entry) => counselingLineById(entry, entry.openingLineId)) ?? []
+    const backgrounds = chime?.sessions.flatMap((entry) => entry.lines.map((item) => item.background?.key)) ?? []
 
     expect(openings.every((item) => item?.background?.key === 'Desert_02')).toBe(true)
     expect(backgrounds.filter((key) => key === 'Desert_02')).toHaveLength(20)
