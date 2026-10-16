@@ -72,9 +72,9 @@
       <div class="chat-input-area" style="gap: 6px">
         <n-input v-model:value="userInput" type="textarea" :placeholder="isApiKeyMissing ? 'Please enter API Key in settings' : 'Type your message...'" :disabled="isApiKeyMissing" :autosize="{ minRows: 1, maxRows: 3 }" @keydown.enter.prevent="handleEnter" />
         <template v-if="!isCompactMobile">
-          <n-button type="primary" @click="sendMessage" :disabled="isLoading || !userInput.trim() || isApiKeyMissing">Send</n-button>
+          <n-button type="primary" @click="sendMessage" :disabled="(isLoading && !counselingActive) || !userInput.trim() || isApiKeyMissing">Send</n-button>
           <n-button type="error" @click="stopGeneration" v-if="isLoading">Stop</n-button>
-          <n-button type="success" @click="nextAction" v-if="(waitingForNext || !isLoading) && chatHistory.length > 0" :disabled="isApiKeyMissing">
+          <n-button type="success" @click="nextAction" v-if="(waitingForNext || !isLoading) && chatHistory.length > 0" :disabled="isApiKeyMissing && !(counselingActive && waitingForNext)">
             {{ waitingForNext ? 'Next' : 'Continue' }}
           </n-button>
           <n-button type="warning" @click="retryLastMessage" v-if="showRetry && !isLoading" :disabled="isApiKeyMissing">Retry</n-button>
@@ -102,13 +102,13 @@
             </transition>
           </div>
           <div class="mobile-btn-row">
-            <n-button type="primary" size="tiny" circle @click="sendMessage" :disabled="isLoading || !userInput.trim() || isApiKeyMissing" title="Send" aria-label="Send message">
+            <n-button type="primary" size="tiny" circle @click="sendMessage" :disabled="(isLoading && !counselingActive) || !userInput.trim() || isApiKeyMissing" title="Send" aria-label="Send message">
               <template #icon><n-icon><Send /></n-icon></template>
             </n-button>
             <n-button type="error" size="tiny" circle @click="stopGeneration" v-if="isLoading" title="Stop" aria-label="Stop generation">
               <template #icon><n-icon><Stop /></n-icon></template>
             </n-button>
-            <n-button type="success" size="tiny" circle @click="nextAction" v-if="(waitingForNext || !isLoading) && chatHistory.length > 0" :disabled="isApiKeyMissing" title="Continue" aria-label="Continue">
+            <n-button type="success" size="tiny" circle @click="nextAction" v-if="(waitingForNext || !isLoading) && chatHistory.length > 0" :disabled="isApiKeyMissing && !(counselingActive && waitingForNext)" title="Continue" aria-label="Continue">
               <template #icon><n-icon><Play /></n-icon></template>
             </n-button>
             <n-button type="warning" size="tiny" circle @click="retryLastMessage" v-if="showRetry && !isLoading" :disabled="isApiKeyMissing" title="Retry" aria-label="Retry">
@@ -264,7 +264,7 @@
       </div>
 
       <!-- Modals always rendered so overflow-menu buttons can trigger them -->
-      <n-modal v-model:show="showPresetsModal" preset="card" title="Presets" style="max-width: 500px">
+      <n-modal v-model:show="showPresetsModal" preset="card" title="Presets" style="max-width: 640px">
           <n-tabs v-model:value="activePresetTab" type="segment" animated>
             <n-tab-pane name="roster" tab="Roster">
               <div v-if="presets.length === 0" style="text-align: center; padding: 20px; color: #888">
@@ -345,6 +345,32 @@
                 </div>
               </div>
             </n-tab-pane>
+            <n-tab-pane name="counseling" tab="Counseling">
+              <div v-if="counselingMenuEntries.length === 0" style="text-align: center; padding: 20px; color: #888">
+                No counseling sessions are loaded.
+              </div>
+              <div v-else class="presets-list">
+                <div style="padding: 0 4px 8px; color: #888; font-size: 12px; line-height: 1.4">
+                  Each session replays on its own. Stop and type to leave the script. After the last line, the next message uses the model.
+                </div>
+                <section v-for="character in counselingMenuEntries" :key="character.id">
+                  <div style="font-weight: 600; color: #e0e0e0; margin: 4px 4px 8px">{{ character.name }}</div>
+                  <div class="presets-list">
+                    <div v-for="counselingSession in character.sessions" :key="counselingSession.id" class="preset-item">
+                      <div class="preset-info">
+                        <div class="preset-name-row">
+                          <span class="preset-name">{{ counselingSession.label }}</span>
+                        </div>
+                        <div class="preset-message-preview">{{ counselingSession.blurb }}</div>
+                      </div>
+                      <div class="preset-actions">
+                        <n-button size="tiny" type="primary" @click="startCounselingSession(counselingSession.id)">Play</n-button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </n-tab-pane>
           </n-tabs>
           <template v-if="(activePresetTab === 'roster' && presets.length >= ROSTER_MAX_PRESETS) || (activePresetTab === 'firstTurn' && firstTurnPresets.length >= FIRST_TURN_MAX_PRESETS)" #header-extra>
             <n-tag type="warning" size="small">Full ({{ activePresetTab === 'roster' ? presets.length : firstTurnPresets.length }}/{{ activePresetTab === 'roster' ? ROSTER_MAX_PRESETS : FIRST_TURN_MAX_PRESETS }})</n-tag>
@@ -362,7 +388,7 @@
                 {{ presetImportSuccess }}
               </n-alert>
             </template>
-            <template v-else>
+            <template v-else-if="activePresetTab === 'firstTurn'">
               <div class="presets-footer">
                 <n-button size="small" @click="exportAllFirstTurnPresets" :disabled="firstTurnPresets.length === 0">Export All</n-button>
                 <n-button size="small" @click="triggerFirstTurnPresetImport">Import</n-button>
@@ -1017,6 +1043,7 @@ import { buildCharacterCatalog, getCharacterSelectOptions, getSkinOptionsForBase
 import { type PresetEntry, MAX_PRESETS as ROSTER_MAX_PRESETS } from '@/utils/rosterPresetUtils'
 import { type FirstTurnPresetEntry, MAX_PRESETS as FIRST_TURN_MAX_PRESETS } from '@/utils/firstTurnPresetUtils'
 import { getAnimationOverrides, resolveAnimationOverride, validateAnimationOverrides } from '@/utils/animationOverrideUtils'
+import { choiceJumpTarget, counselingCatalog, counselingLineById, counselingLineToAction, counselingMenu, findCounselingSession, type CounselingSession } from '@/utils/counselingScript'
 import { buildSessionExportData, downloadSessionFile, reconstructChatHistory, validateSessionSettings, adjustLastSummarizedIndex, validatePlayerCharacterState, resolveProviderModelsForSessionRestore, applyValidatedSessionSettings } from '@/utils/sessionUtils'
 import StoryGuideModal from '@/components/common/StoryGenerator/StoryGuideModal.vue'
 import NikkeChatOverlay from '@/components/common/StoryGenerator/NikkeChatOverlay.vue'
@@ -1132,6 +1159,8 @@ const godModeEnabled = ref(localStorage.getItem('nikke_god_mode_enabled') === 't
 const realisticModeEnabled = ref(localStorage.getItem('nikke_realistic_mode_enabled') === 'true')
 const userInput = ref('')
 const isLoading = ref(false)
+const counselingActive = ref(false)
+let counselingToken = 0
 const isGenerating = ref(false)
 const loadingStatus = ref('')
 const isStopped = ref(false)
@@ -1173,6 +1202,7 @@ const OVERLAP_TURNS = 3
 
 // Story/Roleplay character roster
 const characterCatalog = buildCharacterCatalog()
+const counselingMenuEntries = computed(() => counselingMenu(counselingCatalog))
 validateAnimationOverrides()
 const rosterRows = ref<StoryCharacterEntry[]>([])
 const showRosterList = ref(false)
@@ -2717,7 +2747,11 @@ const buildAiTurnContext = (logTag: string) => ({
 })
 
 const sendMessage = async () => {
-  if (!userInput.value.trim() || isLoading.value) return
+  const interruptingCounseling = counselingActive.value
+  if (interruptingCounseling) abortCounselingPlayback()
+
+  if (!userInput.value.trim()) return
+  if (isLoading.value && !interruptingCounseling) return
   if (!ensureApiKeyForCurrentProvider()) return
   if (gameChoices.value.length > 0 || pendingGameChoices.value.length > 0 || choicesAwaitingReveal.value) return
 
@@ -2758,7 +2792,16 @@ const regenerateResponse = async () => {
   }
 }
 
+const abortCounselingPlayback = () => {
+  counselingToken += 1
+  counselingActive.value = false
+  if (isTyping.value) stopTypewriter()
+  clearGameChoiceState({ resolvePendingWait: true })
+  abortCurrentPlaybackForChoice.value = false
+}
+
 const stopGeneration = () => {
+  abortCounselingPlayback()
   isStopped.value = true
   isLoading.value = false
   nikkeOverlayVisible.value = false
@@ -3773,7 +3816,10 @@ const handlePlaybackWait = async (data: any, calculatedYapDuration: number) => {
   return false
 }
 
+const counselingPlaybackCancelled = (token: number | null) => token !== null && token !== counselingToken
+
 const executeAction = async (data: any) => {
+  const counselingActionToken = counselingActive.value ? counselingToken : null
   logDebug('Executing Action:', data)
 
   market.live2d.isYapping = false
@@ -3831,6 +3877,8 @@ const executeAction = async (data: any) => {
       await characterUpdatePromise
     }
 
+    if (counselingPlaybackCancelled(counselingActionToken)) return
+
     if (data.speaking) {
       const name = resolveSpeakerName(effectiveCharId, content)
       if (name) {
@@ -3865,8 +3913,100 @@ const executeAction = async (data: any) => {
     await characterUpdatePromise
   }
 
+  if (counselingPlaybackCancelled(counselingActionToken)) return
+
   const wasChoice = await handlePlaybackWait(data, calculatedYapDuration)
   if (wasChoice) return
+}
+
+const runCounselingSession = async (counselingSession: CounselingSession) => {
+  const token = ++counselingToken
+  counselingActive.value = true
+  isStopped.value = false
+
+  try {
+    let lineId: string | undefined = counselingSession.openingLineId
+
+    while (lineId) {
+      if (token !== counselingToken) return
+
+      const counselingLine = counselingLineById(counselingSession, lineId)
+      if (!counselingLine) return
+
+      isStopped.value = false
+      isLoading.value = true
+      loadingStatus.value = 'Playing counseling...'
+      nikkeOverlayVisible.value = true
+      await executeAction(counselingLineToAction(counselingLine))
+
+      if (token !== counselingToken) return
+
+      if ('choices' in counselingLine) {
+        const chosen = pendingGameChoiceText.value
+        pendingGameChoiceText.value = null
+        abortCurrentPlaybackForChoice.value = false
+        if (!chosen) return
+
+        chatHistory.value.push({ role: 'user', content: chosen })
+        lastPrompt.value = chosen
+        scrollToBottom()
+        lineId = choiceJumpTarget(counselingLine, chosen) ?? undefined
+        continue
+      }
+
+      lineId = counselingLine.next
+    }
+  } finally {
+    if (token === counselingToken) {
+      counselingActive.value = false
+      isLoading.value = false
+      waitingForNext.value = false
+    }
+  }
+}
+
+const startCounselingSession = (sessionId: string) => {
+  const found = findCounselingSession(counselingCatalog, sessionId)
+  if (!found || isLoading.value) return
+
+  const selection = getSelectionForName(found.character.name, characterCatalog)
+  if (!selection) return
+
+  if (chatHistory.value.length > 0) {
+    const confirmed = window.confirm('Start this counseling session? The current story will be replaced.')
+    if (!confirmed) return
+  }
+
+  clearGameChoiceState()
+  rotateOpenCodeGoSessionId()
+  chatHistory.value = []
+  characterProfiles.value = {}
+  characterProgression.value = {}
+  storySummary.value = ''
+  lastSummarizedIndex.value = 0
+  summarizationRetryPending.value = false
+  summarizationAttemptCount.value = 0
+  summarizationLastError.value = null
+  summarizationSuccessCount.value = 0
+  summaryJustCompacted.value = false
+  isLoadedSession.value = false
+  lastPrompt.value = ''
+  market.live2d.isVisible = false
+  market.live2d.clearActiveBackground()
+  selectedMessageIndex.value = null
+  mode.value = 'game'
+  if (chatMode.value !== 'nikke') chatMode.value = 'nikke'
+  rosterRows.value = [{
+    key: `counseling-${found.session.id}`,
+    selection: selection.selection,
+    skinId: selection.skinId,
+    source: 'user'
+  }]
+  ensureValidSelectedPlayerCharacter()
+  showPresetsModal.value = false
+  nikkeOverlayVisible.value = true
+
+  void runCounselingSession(found.session)
 }
 
 const resetSession = () => {

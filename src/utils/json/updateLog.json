@@ -730,5 +730,9 @@
   {
     "date": "September 27th 2026",
     "update": "Gallery: Added Persona On Frontline Album & gallery. Added Great Villain Union gallery. Added Coin Rush Showdown album and gallery"
+  },
+  {
+    "date": "October 16th 2026",
+    "update": "Story generator: Chime's counseling sessions are in the Preset menu. Play replays the scene and its choices without a model. Stop and type, or continue after the last line, and the model takes the story from there."
   }
 ]
