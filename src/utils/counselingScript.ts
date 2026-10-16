@@ -347,32 +347,3 @@ export const counselingLineToAction = (line: CounselingLine) => {
 
   return action
 }
-
-export const traceCounselingPaths = (session: CounselingSession): string[][] => {
-  const paths: string[][] = []
-
-  const walk = (lineId: string | undefined, path: string[]) => {
-    if (!lineId) {
-      paths.push(path)
-      return
-    }
-
-    const line = counselingLineById(session, lineId)
-    if (!line) {
-      throw new Error(`Counseling trace missing ${lineId}`)
-    }
-
-    const nextPath = path.concat(line.id)
-
-    if ('choices' in line) {
-      for (const choice of line.choices) walk(choice.jumpTo, nextPath)
-      return
-    }
-
-    walk(line.next, nextPath)
-  }
-
-  walk(session.openingLineId, [])
-
-  return paths
-}
