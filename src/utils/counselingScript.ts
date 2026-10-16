@@ -341,7 +341,8 @@ export const counselingLineToAction = (line: CounselingLine) => {
     speaking: line.speaking
   }
 
-  if (line.background) action.background = line.background
+  const closingBackgroundClear = !('choices' in line) && !line.next && line.background?.key === 'none'
+  if (line.background && !closingBackgroundClear) action.background = line.background
   if ('choices' in line) action.choices = line.choices
 
   return action
