@@ -50,6 +50,7 @@ export interface SessionData {
   rosterRows: StoryCharacterEntry[]
   playerCharacter?: PlayerCharacterSessionState
   settings: SessionSettings
+  counselingSessionId?: string
 }
 
 export interface PlayerCharacterSessionState {
@@ -86,6 +87,7 @@ export interface BuildSessionExportParams {
   openRouterSpeed: OpenRouterSpeed
   autoCompactSummaries: boolean
   autoCompactFrequency: number
+  counselingSessionId?: string
 }
 
 // --- Export (save) helpers ---
@@ -127,7 +129,7 @@ export function buildSessionExportData(params: BuildSessionExportParams): Sessio
       }
     })
 
-  return {
+  const sessionData: SessionData = {
     chatHistory: exportedChatHistory,
     characterProfiles: params.characterProfiles,
     characterProgression: params.characterProgression,
@@ -158,6 +160,12 @@ export function buildSessionExportData(params: BuildSessionExportParams): Sessio
       autoCompactFrequency: params.autoCompactFrequency
     }
   }
+
+  if (typeof params.counselingSessionId === 'string' && params.counselingSessionId !== '') {
+    sessionData.counselingSessionId = params.counselingSessionId
+  }
+
+  return sessionData
 }
 
 /**
