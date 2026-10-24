@@ -1044,6 +1044,7 @@ import { type PresetEntry, MAX_PRESETS as ROSTER_MAX_PRESETS } from '@/utils/ros
 import { type FirstTurnPresetEntry, MAX_PRESETS as FIRST_TURN_MAX_PRESETS } from '@/utils/firstTurnPresetUtils'
 import { getAnimationOverrides, resolveAnimationOverride, validateAnimationOverrides } from '@/utils/animationOverrideUtils'
 import { choiceJumpTarget, counselingCatalog, counselingLineById, counselingLineToAction, counselingMenu, findCounselingSession, type CounselingSession } from '@/utils/counselingScript'
+import { attachCounselingScene, counselingSceneAnchor, parseCounselingSceneAnchor, type CounselingSceneAnchor } from '@/utils/counselingScene'
 import { buildSessionExportData, downloadSessionFile, reconstructChatHistory, validateSessionSettings, adjustLastSummarizedIndex, validatePlayerCharacterState, resolveProviderModelsForSessionRestore, applyValidatedSessionSettings } from '@/utils/sessionUtils'
 import StoryGuideModal from '@/components/common/StoryGenerator/StoryGuideModal.vue'
 import NikkeChatOverlay from '@/components/common/StoryGenerator/NikkeChatOverlay.vue'
@@ -1160,6 +1161,7 @@ const realisticModeEnabled = ref(localStorage.getItem('nikke_realistic_mode_enab
 const userInput = ref('')
 const isLoading = ref(false)
 const counselingActive = ref(false)
+const counselingScene = ref<CounselingSceneAnchor | null>(null)
 const counselingPhase = ref<'playing' | 'ended' | null>(null)
 let counselingToken = 0
 let ignoreContinueUntil = 0
@@ -2461,6 +2463,9 @@ const resetCharacterPlacement = () => {
 const deleteLastMessage = () => {
   if (chatHistory.value.length > 0) {
     chatHistory.value.pop()
+    if (chatHistory.value.length === 0) {
+      counselingScene.value = null
+    }
     clearGameChoiceState()
   }
 }
@@ -2496,7 +2501,8 @@ const saveSession = () => {
     reasoningEffort: reasoningEffort.value,
     openRouterSpeed: openRouterSpeed.value,
     autoCompactSummaries: autoCompactSummaries.value,
-    autoCompactFrequency: autoCompactFrequency.value
+    autoCompactFrequency: autoCompactFrequency.value,
+    counselingSessionId: counselingScene.value?.sessionId
   })
 
   downloadSessionFile(sessionData)
@@ -2671,6 +2677,12 @@ const handleFileUpload = (event: Event) => {
 
         // Scroll to bottom
         scrollToBottom()
+
+        const parsedCounselingScene = parseCounselingSceneAnchor(data.counselingSessionId)
+        if (parsedCounselingScene.status === 'rejected') {
+          console.warn('Rejected counseling session id from save file', data.counselingSessionId)
+        }
+        counselingScene.value = parsedCounselingScene.status === 'ready' ? parsedCounselingScene.anchor : null
 
         // Add system message to confirm restore
         chatHistory.value.push({ role: 'system', content: 'Session restored successfully.' })
@@ -3035,6 +3047,7 @@ const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean
     prompts.reminders as Record<string, string>
   )
   messages = injectFirstTurnReminder(messages, firstTurnReminder)
+  messages = attachCounselingScene(messages, counselingScene.value)
 
   return await dispatchToProvider(apiProvider.value, messages, enableWebSearch, getProviderCalls())
 }
@@ -4040,6 +4053,7 @@ const startCounselingSession = (sessionId: string) => {
   clearGameChoiceState()
   rotateOpenCodeGoSessionId()
   chatHistory.value = []
+  counselingScene.value = counselingSceneAnchor(found.character, found.session)
   characterProfiles.value = {}
   characterProgression.value = {}
   storySummary.value = ''
@@ -4084,6 +4098,7 @@ const resetSession = () => {
     // Resetting the story should not keep the previous visual scene pinned to the
     // page background, so clear any active blob URL even if the pack stays loaded.
     chatHistory.value = []
+    counselingScene.value = null
     characterProfiles.value = {}
     characterProgression.value = {}
     storySummary.value = ''
