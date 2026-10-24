@@ -153,12 +153,13 @@ const counselingSceneRegistry: Readonly<Record<string, SceneRule>> = {
     location: 'The Utopia cruise ship',
     leadAttire: 'already-swimsuit',
     background: [
-      { name: 'Elegg: Boom and Shock', attire: 'swimsuit' },
+      { name: 'Elegg: Boom and Shock', attire: 'already-swimsuit' },
       ...utopiaCompanions
     ]
   }),
   'Elegg: Boom and Shock': scene({
     location: 'The Utopia cruise ship',
+    leadAttire: 'already-swimsuit',
     background: [
       { name: 'Dorothy: Serendipity', attire: 'already-swimsuit' },
       ...utopiaCompanions

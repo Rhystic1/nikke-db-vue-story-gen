@@ -39,14 +39,18 @@ The player is choosing what she does to distract herself from her crushing isola
 const miharaScene = `[Location: the Command Center at the Outpost. Characters present in the scene: Mihara: Bonding Chain, the Commander]
 This session is a hazy flashback of a conversation with the protagonist from before the side story Wordless, distorted by memory wipes and neural damage.`
 
+const eleggScene = '[Location: the Command Center at the Outpost. Characters present in the scene: Elegg, the Commander]'
+
 const dorothyScene = `[Location: The Utopia cruise ship. Characters present in the scene: Dorothy: Serendipity, the Commander, Elegg: Boom and Shock, Rapi: Red Hood, Tove, Centi, Yan, Frima]
 Elegg: Boom and Shock, Rapi: Red Hood, Tove, Centi, Yan, and Frima are in the background and are not participating, though they may be spoken to later.
-Elegg: Boom and Shock, Rapi: Red Hood, Tove, Centi, Yan, and Frima are in swimming suits.
-Dorothy: Serendipity's default skin is already a swimsuit.`
+Rapi: Red Hood, Tove, Centi, Yan, and Frima are in swimming suits.
+Dorothy: Serendipity's default skin is already a swimsuit.
+Elegg: Boom and Shock's default skin is already a swimsuit.`
 
-const eleggScene = `[Location: The Utopia cruise ship. Characters present in the scene: Elegg: Boom and Shock, the Commander, Dorothy: Serendipity, Rapi: Red Hood, Tove, Centi, Yan, Frima]
+const eleggBoomScene = `[Location: The Utopia cruise ship. Characters present in the scene: Elegg: Boom and Shock, the Commander, Dorothy: Serendipity, Rapi: Red Hood, Tove, Centi, Yan, Frima]
 Dorothy: Serendipity, Rapi: Red Hood, Tove, Centi, Yan, and Frima are in the background and are not participating, though they may be spoken to later.
 Rapi: Red Hood, Tove, Centi, Yan, and Frima are in swimming suits.
+Elegg: Boom and Shock's default skin is already a swimsuit.
 Dorothy: Serendipity's default skin is already a swimsuit.`
 
 const nayutaScene = `[Location: Aboard Whaley's back. Characters present in the scene: Nayuta, the Commander, Rapi: Red Hood, Maxwell: Ordinary Mechanic, Drake: Great Villain, Laplace: Ultimate Hero]
@@ -67,8 +71,9 @@ const scenes: Array<[string, string]> = [
   ['d_counseling_redhood_01', redHoodScene],
   ['d_counseling_littlemermaid_01', littleMermaidScene],
   ['d_counseling_mihara_bondingchain_01', miharaScene],
+  ['d_counseling_elegg_01', eleggScene],
   ['d_counseling_dorothy_serendipity_01', dorothyScene],
-  ['d_Counseling_elegg_boomandshock_01', eleggScene],
+  ['d_Counseling_elegg_boomandshock_01', eleggBoomScene],
   ['d_counseling_nayuta_01', nayutaScene]
 ]
 
