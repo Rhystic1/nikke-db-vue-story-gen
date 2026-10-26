@@ -29,6 +29,11 @@ export const OPENCODE_GO_ANTHROPIC_MODELS = new Set([
   'qwen3.7-plus',
   'qwen3.6-plus'
 ])
+export const OPENCODE_GO_GOOGLE_MODELS = new Set(['gemini-4-argon'])
+
+export const openCodeGoGoogleGenerateContentUrl = (model: string) => {
+  return `${OPENCODE_GO_BASE}/inference/go/google/v1beta/models/${encodeURIComponent(model)}:generateContent`
+}
 
 const OPENCODE_GO_SESSION_STORAGE_KEY = 'nikke_opencode_go_session'
 const OPENCODE_GO_CLIENT_ID = 'nikke-db-story-gen'
