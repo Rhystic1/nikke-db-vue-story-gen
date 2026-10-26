@@ -98,7 +98,7 @@ const buildGeminiContents = (messages: any[]) => {
   return { contents, systemMessage }
 }
 
-const extractGeminiText = (data: any, opts?: { checkProhibitedContent?: boolean; includeReasoning?: boolean }) => {
+export const extractGeminiText = (data: any, opts?: { checkProhibitedContent?: boolean; includeReasoning?: boolean }) => {
   if (opts?.checkProhibitedContent && data.promptFeedback?.blockReason === 'PROHIBITED_CONTENT') {
     console.error('Gemini content blocked:', data)
     throw new Error('GEMINI_PROHIBITED_CONTENT')

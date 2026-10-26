@@ -2,9 +2,9 @@
 // These functions handle higher token limits for summarization tasks
 
 import { AIError, logDebug } from '@/utils/chatUtils'
-import { callGeminiSummarization } from '@/utils/geminiUtils'
+import { callGeminiSummarization, extractGeminiText } from '@/utils/geminiUtils'
 import { callPollinationsSummarization } from '@/utils/pollinationsUtils'
-import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, modelsWithoutCacheControlSupport, buildStoryResponseSchema, buildOpenCodeGoHeaders, normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
+import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, OPENCODE_GO_GOOGLE_MODELS, openCodeGoGoogleGenerateContentUrl, modelsWithoutCacheControlSupport, buildStoryResponseSchema, buildOpenCodeGoHeaders, normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
 
 // Re-exports from extracted modules
@@ -127,6 +127,7 @@ const sendOpenAiCompatibleRequest = async (url: string, opts: { requestBody: any
 }
 
 const isOpenCodeGoAnthropicModel = (model: string) => OPENCODE_GO_ANTHROPIC_MODELS.has(model)
+const isOpenCodeGoGoogleModel = (model: string) => OPENCODE_GO_GOOGLE_MODELS.has(model)
 
 const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching: boolean, model: string) => {
   const shouldAddCacheControl = enableContextCaching && !modelsWithoutCacheControlSupport.value.has(model)
@@ -255,6 +256,114 @@ const sendOpenCodeGoAnthropicRequest = async (requestBody: any, apiKey: string, 
   return { response }
 }
 
+const toGemini4ThinkingLevel = (effort?: string) => {
+  switch (effort) {
+    case 'minimal':
+    case 'low':
+      return 'LOW'
+    case 'medium':
+      return 'MEDIUM'
+    case 'high':
+    case 'xhigh':
+      return 'HIGH'
+    default:
+      return undefined
+  }
+}
+
+const buildOpenCodeGoGoogleRequestBody = (opts: { messages: any[]; maxTokens: number; reasoningEffort?: string; includeReasoning?: boolean; jsonMime?: boolean }) => {
+  const systemTexts: string[] = []
+  const contents: any[] = []
+
+  for (const message of opts.messages) {
+    if (message?.role === 'system') {
+      if (typeof message.content === 'string' && message.content) {
+        systemTexts.push(message.content)
+      }
+      continue
+    }
+
+    const text = typeof message?.content === 'string' ? message.content : ''
+    contents.push({
+      role: message?.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text }]
+    })
+  }
+
+  const generationConfig: any = {
+    maxOutputTokens: opts.maxTokens
+  }
+
+  if (opts.jsonMime) {
+    generationConfig.responseMimeType = 'application/json'
+  }
+
+  const thinkingLevel = toGemini4ThinkingLevel(opts.reasoningEffort)
+  if (thinkingLevel) {
+    generationConfig.thinkingConfig = {
+      thinkingLevel
+    }
+    if (opts.includeReasoning) {
+      generationConfig.thinkingConfig.includeThoughts = true
+    }
+  } else if (opts.includeReasoning) {
+    generationConfig.thinkingConfig = {
+      includeThoughts: true
+    }
+  }
+
+  const requestBody: any = {
+    contents,
+    generationConfig
+  }
+
+  if (systemTexts.length > 0) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemTexts.join('\n\n') }]
+    }
+  }
+
+  return requestBody
+}
+
+const sendOpenCodeGoGoogleRequest = async (model: string, requestBody: any, apiKey: string, signal?: AbortSignal) => {
+  const response = await fetch(openCodeGoGoogleGenerateContentUrl(model), {
+    method: 'POST',
+    headers: buildOpenCodeGoHeaders(getOpenAiCompatibleHeaders(apiKey)),
+    body: JSON.stringify(requestBody),
+    signal
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    console.error('OpenCode Go Google API Error Details:', errorData)
+
+    if (response.status === 429) {
+      throw new Error('RATE_LIMITED')
+    }
+
+    return { response, errorData }
+  }
+
+  return { response }
+}
+
+const callOpenCodeGoGoogle = async (opts: { messages: any[]; model: string; apiKey: string; maxTokens: number; reasoningEffort?: string; includeReasoning?: boolean; jsonMime?: boolean; signal?: AbortSignal }) => {
+  const requestBody = buildOpenCodeGoGoogleRequestBody(opts)
+  const result = await sendOpenCodeGoGoogleRequest(opts.model, requestBody, opts.apiKey, opts.signal)
+
+  if (!result.response.ok) {
+    throw new AIError(result.errorData?.error?.code ?? result.response.status, result.errorData?.error?.message ?? result.response.statusText ?? 'Unknown error')
+  }
+
+  const data = await result.response.json()
+
+  return extractGeminiText(data, {
+    checkProhibitedContent: true,
+    includeReasoning: opts.includeReasoning
+  })
+}
+
 const isReasoningParameterError = (errorData: any) => {
   const msg = (errorData?.error?.message || '') + ' ' + (errorData?.error?.code || '')
   return msg.toLowerCase().includes('reasoning') || (typeof errorData?.message === 'string' && errorData.message.toLowerCase().includes('reasoning'))
@@ -271,6 +380,18 @@ const callOpenCodeGoTextRequest = async (opts: { messages: any[]; model: string;
 
   if (reasoningEffort && reasoningEffort !== 'default' && modelsWithoutReasoningSupport.value.has(model)) {
     reasoningEffort = undefined
+  }
+
+  if (isOpenCodeGoGoogleModel(model)) {
+    return await callOpenCodeGoGoogle({
+      messages,
+      model,
+      apiKey,
+      maxTokens,
+      reasoningEffort,
+      includeReasoning,
+      signal
+    })
   }
 
   if (isOpenCodeGoAnthropicModel(model)) {
@@ -838,6 +959,19 @@ export const callOpenCodeGo = async (
 
   if (reasoningEffort && reasoningEffort !== 'default' && modelsWithoutReasoningSupport.value.has(model)) {
     reasoningEffort = undefined
+  }
+
+  if (isOpenCodeGoGoogleModel(model)) {
+    return await callOpenCodeGoGoogle({
+      messages,
+      model,
+      apiKey,
+      maxTokens,
+      reasoningEffort,
+      includeReasoning,
+      jsonMime: true,
+      signal
+    })
   }
 
   const callWithoutJsonFormat = async () => {
