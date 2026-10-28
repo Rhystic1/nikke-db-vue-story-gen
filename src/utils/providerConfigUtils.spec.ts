@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { buildStoryResponseSchema } from '@/utils/providerConfigUtils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { buildOpenCodeGoHeaders, buildStoryResponseSchema, getOpenCodeGoSessionId, rotateOpenCodeGoSessionId } from '@/utils/providerConfigUtils'
 
 type SchemaNode = Record<string, any>
 
@@ -82,6 +82,55 @@ const firstStrictProblem = (node: SchemaNode, path: string[], isRoot: boolean): 
 const strictSchemaError = (responseFormat: { json_schema: { schema: SchemaNode } }) => {
   return firstStrictProblem(responseFormat.json_schema.schema, [], true)
 }
+
+const SESSION_KEY = 'nikke_opencode_go_session'
+
+const hideRandomUUID = () => {
+  const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID')
+  Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined })
+
+  return () => {
+    if (descriptor) {
+      Object.defineProperty(crypto, 'randomUUID', descriptor)
+    }
+  }
+}
+
+describe('OpenCode Go session id', () => {
+  afterEach(() => {
+    sessionStorage.removeItem(SESSION_KEY)
+    vi.restoreAllMocks()
+  })
+
+  it('stores the platform id when crypto.randomUUID exists', () => {
+    const platformId = '11111111-1111-4111-8111-111111111111'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(platformId)
+
+    expect(getOpenCodeGoSessionId()).toBe(platformId)
+    expect(sessionStorage.getItem(SESSION_KEY)).toBe(platformId)
+    expect(buildOpenCodeGoHeaders()['x-opencode-session']).toBe(platformId)
+  })
+
+  it('still stores a session id when crypto.randomUUID is missing', () => {
+    const restore = hideRandomUUID()
+
+    try {
+      const first = getOpenCodeGoSessionId()
+      expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      expect(sessionStorage.getItem(SESSION_KEY)).toBe(first)
+      expect(getOpenCodeGoSessionId()).toBe(first)
+
+      const rotated = rotateOpenCodeGoSessionId()
+      expect(rotated).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      expect(rotated).not.toBe(first)
+      expect(sessionStorage.getItem(SESSION_KEY)).toBe(rotated)
+      expect(buildOpenCodeGoHeaders()['x-opencode-session']).toBe(rotated)
+      expect(buildOpenCodeGoHeaders()['x-opencode-client']).toBe('nikke-db-story-gen')
+    } finally {
+      restore()
+    }
+  })
+})
 
 describe('buildStoryResponseSchema', () => {
   it('builds a StoryResponse schema OpenAI strict mode accepts', () => {
