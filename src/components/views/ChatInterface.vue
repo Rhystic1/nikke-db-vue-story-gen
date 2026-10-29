@@ -2916,7 +2916,7 @@ const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise
 
   let messages: any[] = [
     { role: 'system', content: fullSystemPrompt },
-    ...historyToSend.map((m) => ({ role: m.role, content: m.content }))
+    ...historyToSend.filter((m) => m.role !== 'system').map((m) => ({ role: m.role, content: m.content }))
   ]
 
   const firstTurnReminder = buildFirstTurnHonorificsReminder(
