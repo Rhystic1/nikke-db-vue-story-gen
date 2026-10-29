@@ -398,7 +398,6 @@ async function listPaidModels(apiKey: string | undefined): Promise<ModelListResu
   }
 }
 
-// A shared model id can fail schema or reasoning on this host and still succeed on Go.
 const PAID_NO_JSON_SCHEMA_KEY = 'nikke_opencode_no_json_schema'
 const PAID_NO_REASONING_KEY = 'nikke_opencode_no_reasoning'
 

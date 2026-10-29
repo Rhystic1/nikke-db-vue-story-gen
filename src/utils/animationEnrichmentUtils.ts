@@ -32,7 +32,6 @@ export const enrichActionsWithAnimations = async (
 
   const { currentCharacterId, filteredAnimations, animationEnrichmentPrompt, preserveExistingAnimations = true, rawResponseText, characterAnimations, complete } = opts
 
-  // Get unique characters present in the scene
   const charactersInScene = Array.from(new Set(actions.map((a) => a.character).filter((c) => c && c !== 'none')))
 
   // Build formatted animation list for ALL characters in the scene

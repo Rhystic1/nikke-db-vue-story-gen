@@ -7,7 +7,6 @@ import { cleanWikiContent, parseAIResponse, isWholeWordPresent } from '@/utils/c
 import { getSelectionForName, parseSelectionValue, type CharacterCatalog } from '@/utils/storyCharacterUtils'
 import { characterSearchMode, type ChatMessage, type StoryProviderId } from '@/utils/storyProviders'
 
-// Web search state
 export const allowWebSearchFallback = ref(localStorage.getItem('nikke_allow_web_search_fallback') !== 'false')
 
 export const WIKI_PROXY_URL = 'https://nikke-wiki-proxy.rhysticone.workers.dev'
@@ -267,8 +266,6 @@ export const searchForCharacters = async (characterNames: string[], characterPro
   await searchForCharactersViaWikiFetch(charsToSearch, characterProfiles, (messages) => complete('wiki', messages))
   return true
 }
-
-// ── Search request detection ──────────────────────────────────────────
 
 export type CheckSearchRequestParams = {
   characterProfiles: Record<string, any>

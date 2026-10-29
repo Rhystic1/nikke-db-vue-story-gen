@@ -1,12 +1,8 @@
-// LLM utility functions for summarization and API calls
-// These functions handle higher token limits for summarization tasks
-
 import { AIError, logDebug } from '@/utils/chatUtils'
 import { extractGeminiText } from '@/utils/geminiUtils'
 import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, OPENCODE_GO_GOOGLE_MODELS, openCodeGoGoogleGenerateContentUrl, modelsWithoutCacheControlSupport, buildStoryResponseSchema, buildOpenCodeGoHeaders, normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
 
-// Re-exports from extracted modules
 export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, tokenUsageOptions, openRouterSpeedOptions, normalizeOpenRouterSpeed, buildStoryResponseSchema, rotateOpenCodeGoSessionId, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
 export { callPollinationsSummarization, callPollinations, callPollinationsWithoutJson } from '@/utils/pollinationsUtils'
 export { getFilteredAnimations, enrichActionsWithAnimations, formatAnimationsForContext } from '@/utils/animationEnrichmentUtils'

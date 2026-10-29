@@ -1,10 +1,5 @@
-// Settings utility functions
-// Extracted from ChatInterface.vue — reads localStorage and returns validated plain values.
-
 import { tokenUsageOptions } from '@/utils/llmUtils'
 import { parseStoryProviderId, type StoryProviderId } from '@/utils/storyProviders'
-
-// --- Shared localStorage keys ---
 
 /** localStorage key for the mobile-optimizations toggle. */
 export const MOBILE_OPTIMIZATIONS_STORAGE_KEY = 'nikke_story_gen_mobile_optimizations'
@@ -140,7 +135,6 @@ export function loadSettingsFromStorage(): StoredSettings {
     result.playerCharacterName = savedPlayerCharacterName
   }
 
-  // Provider + model (raw values — caller must validate model against fetched lists)
   const savedProvider = localStorage.getItem('nikke_api_provider')
   const providerId = savedProvider ? parseStoryProviderId(savedProvider) : undefined
   if (providerId) {

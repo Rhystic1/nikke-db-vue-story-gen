@@ -487,7 +487,7 @@
       :nikkeSpeakerColor="nikkeSpeakerColor"
       :gameChoices="gameChoices"
       @stop="closeNikkeOverlay"
-      @game-choice="handleGameChoice"
+      @game-choice="queueGameChoice"
     />
 
     <n-drawer v-model:show="showSettings" width="300" placement="right">
@@ -1600,18 +1600,11 @@ const setRandomLoadingMessage = () => {
   loadingStatus.value = loadingMessages[Math.floor(Math.random() * loadingMessages.length)]
 }
 
-// Models/providers that have native web search in OpenRouter
-
-// Options
-// Handled by llmUtils.ts
-
 const modelOptions = computed(() => modelsByProvider.value[apiProvider.value] ?? [])
 
 const providerRequiresApiKey = computed(() => apiProvider.value !== 'local')
 
 const isApiKeyMissing = computed(() => providerRequiresApiKey.value && !apiKey.value.trim())
-
-// Computed
 
 const computedUsesWikiFetch = computed(() => providerUsesWiki(apiProvider.value, model.value))
 
@@ -2558,13 +2551,11 @@ const handleFileUpload = (event: Event) => {
           }
         }
 
-        // Ensure a minimum context window upon restore
         lastSummarizedIndex.value = adjustLastSummarizedIndex(chatHistory.value.length, lastSummarizedIndex.value, tokenUsage.value)
 
         await nextTick()
         isRestoring.value = false
 
-        // Mark this as a loaded session so overflow detection can handle large unsummarized portions
         isLoadedSession.value = true
 
         // Clear input value so same file can be selected again if needed
@@ -3004,7 +2995,6 @@ const callAIWithoutSearch = async (isRetry: boolean = false): Promise<string> =>
   return await buildPromptAndDispatch(isRetry, 'callAIWithoutSearch')
 }
 
-// Check if the AI response contains a search request for unknown characters
 const checkForSearchRequest = async (response: string, userPrompt: string = ''): Promise<string[] | null> => {
   return checkForSearchRequestUtil(response, userPrompt, {
     characterProfiles: playerCharacterAwareProfiles.value,
@@ -3013,11 +3003,6 @@ const checkForSearchRequest = async (response: string, userPrompt: string = ''):
     allowWebSearchFallback: allowWebSearchFallback.value
   })
 }
-
-// Fetch wiki page content directly and have the model summarize it
-// Used for OpenRouter models that don't have native web search.
-// We are using a Cloudflare Worker proxy to avoid CORS issues.
-// Its code is open-sourced and available in the
 
 const wrappedSearchForCharacters = async (characterNames: string[]) => {
   return searchForCharacters(
@@ -3055,10 +3040,7 @@ const generateSystemPrompt = (enableWebSearch: boolean) => {
   })
 }
 
-const handleGameChoice = (choice: any) => {
-  // IMPORTANT: Do NOT call sendMessage() here.
-  // sendMessage() is already running (it plays actions while isLoading is true).
-  // Calling it again causes concurrent requests and breaks the existing loading spinner.
+const queueGameChoice = (choice: any) => {
   const choiceTextToSend = formatChoiceAsUserTurn(choice)
 
   pendingGameChoiceText.value = choiceTextToSend
@@ -3163,8 +3145,6 @@ const processAIResponse = async (responseStr: string, depth: number = 0, autoRet
       }
       logDebug('Fallback parsing successful:', data)
 
-      // Enrich fallback-parsed actions with animations (fallback parsing usually assigns idle).
-      // Keep any existing non-idle animations if present.
       try {
         data = await enrichActionsWithAnimations(data, {
           currentCharacterId: market.live2d.current_id,

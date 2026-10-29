@@ -1,12 +1,7 @@
-// Session save/restore utility functions
-// Extracted from ChatInterface.vue to keep serialization logic testable and reusable.
-
 import { tokenUsageOptions } from '@/utils/llmUtils'
 import { normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { parseStoryProviderId, restoredModel, type ModelChoice, type StoryProviderId } from '@/utils/storyProviders'
 import { type StoryCharacterEntry } from '@/utils/storyCharacterUtils'
-
-// --- Types ---
 
 export interface ChatMessage {
   role: string
@@ -238,7 +233,6 @@ export interface ValidatedSessionSettings {
   apiProvider?: StoryProviderId
   model?: string
   backgroundImagesEnabled?: boolean
-  /** If the saved model was invalid, this is the warning message to show. */
   modelWarning?: string
 }
 
@@ -304,15 +298,27 @@ export function validatePlayerCharacterState(value: any): PlayerCharacterSession
   }
 }
 
-/**
- * Validates and extracts session settings from raw parsed JSON data.
- * Returns a plain object of validated values (only those that passed validation).
- * Does NOT apply values to refs — that is left to the caller.
- *
- * @param settings  The `data.settings` object from the parsed session file.
- * @param listed  Catalog choices for the saved provider. The caller fetches them with listStoryModels.
- */
-export function validateSessionSettings(settings: any, listed: readonly ModelChoice[]): ValidatedSessionSettings {
+export type SessionFileSettings = {
+  playbackMode?: string
+  yapEnabled?: boolean
+  ttsEnabled?: boolean
+  ttsEndpoint?: string
+  ttsProvider?: string
+  gptSovitsEndpoint?: string
+  gptSovitsBasePath?: string
+  tokenUsage?: string
+  enableContextCaching?: boolean
+  allowWebSearchFallback?: boolean
+  reasoningEffort?: string
+  openRouterSpeed?: unknown
+  autoCompactSummaries?: boolean
+  autoCompactFrequency?: number
+  backgroundImagesEnabled?: boolean
+  apiProvider?: string
+  model?: string
+}
+
+export function validateSessionSettings(settings: SessionFileSettings | null | undefined, catalog: readonly ModelChoice[]): ValidatedSessionSettings {
   const result: ValidatedSessionSettings = {}
 
   if (!settings) return result
@@ -366,7 +372,7 @@ export function validateSessionSettings(settings: any, listed: readonly ModelCho
   if (id) {
     result.apiProvider = id
     const savedModel = typeof settings.model === 'string' ? settings.model : undefined
-    const decision = restoredModel(id, savedModel, listed)
+    const decision = restoredModel(id, savedModel, catalog)
     if (decision.model) {
       result.model = decision.model
     }
