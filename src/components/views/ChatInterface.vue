@@ -526,7 +526,7 @@
           <h4 class="settings-section-header accent-blue">AI Provider & Model</h4>
           <n-divider />
           <n-form-item label="API Provider">
-            <n-select v-model:value="apiProvider" :options="providerOptions" />
+            <n-select v-model:value="apiProvider" :options="storyProviderOptions" />
           </n-form-item>
 
           <n-form-item label="Local Endpoint URL" v-if="apiProvider === 'local'">
@@ -1028,14 +1028,15 @@ import prompts from '@/utils/json/prompts.json'
 import { marked } from 'marked'
 import { sanitizeActions, parseFallback, parseAIResponse, isWholeWordPresent, formatChoiceAsUserTurn, filterEchoedUserChoiceDialogueInGameMode, stripChoicesWhenNotGameMode, ensureGameModeChoicesFallback, calculateYapDuration, replayMessage as replayMessageUtil, getHonorific, createTypewriterController, getEffectiveCharacterProfiles, logDebug, generateSystemPrompt as generateSystemPromptUtil, injectAnimReasonIntoJsonTemplate } from '@/utils/chatUtils'
 import { executeAiTurn } from '@/utils/chatRetryUtils'
-import { dispatchToProvider, buildFirstTurnHonorificsReminder, injectFirstTurnReminder, type ProviderCallFunctions } from '@/utils/chatAiCaller'
+import { buildFirstTurnHonorificsReminder, injectFirstTurnReminder } from '@/utils/chatAiCaller'
 import { useStoryReminders } from '@/composables/useStoryReminders'
 import { usePresets } from '@/composables/usePresets'
 import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
 import { formatBackgroundFolderLoadFeedback, resolveAiBackgroundSelection } from '@/utils/storyBackgroundUtils'
 import { ttsEnabled, ttsEndpoint, ttsProvider, gptSovitsEndpoint, gptSovitsBasePath, chatterboxEndpoint, ttsProviderOptions, playTTS } from '@/utils/ttsUtils'
-import { allowWebSearchFallback, usesWikiFetch, usesPollinationsAutoFallback, webSearchFallbackHelpText, searchForCharacters, searchForCharactersWithNativeSearch, searchForCharactersViaWikiFetch, checkForSearchRequest as checkForSearchRequestUtil } from '@/utils/aiWebSearchUtils'
-import { callOpenRouter as callOpenRouterImpl, callGemini as callGeminiImpl, callPollinations as callPollinationsImpl, callOpenCodeGo as callOpenCodeGoImpl, enrichActionsWithAnimations, callLocal as callLocalImpl, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, providerOptions, tokenUsageOptions, fetchOpenRouterModels, fetchPollinationsModels, fetchOpenCodeGoModels, fetchGeminiModels, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, formatAnimationsForContext, getReasoningEffortOptions, openRouterSpeedOptions, normalizeOpenRouterSpeed, resolveOpenRouterTierSupport, handleTumblingWindowSummarization, rotateOpenCodeGoSessionId, type OpenRouterSpeed, type OpenRouterTierSupport } from '@/utils/llmUtils'
+import { allowWebSearchFallback, usesPollinationsAutoFallback, webSearchFallbackHelpText, searchForCharacters, checkForSearchRequest as checkForSearchRequestUtil } from '@/utils/aiWebSearchUtils'
+import { enrichActionsWithAnimations, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, tokenUsageOptions, formatAnimationsForContext, openRouterSpeedOptions, normalizeOpenRouterSpeed, resolveOpenRouterTierSupport, handleTumblingWindowSummarization, rotateOpenCodeGoSessionId, type OpenRouterSpeed, type OpenRouterTierSupport } from '@/utils/llmUtils'
+import { storyProviderOptions, parseStoryProviderId, listStoryModels, runStoryProvider, modelAfterRefresh, restoredModel, getReasoningEffortOptions, refetchesModelsWhenKeyChanges, providerUsesWiki, type StoryProviderId, type StoryTask, type StoryRun, type ModelChoice } from '@/utils/storyProviders'
 import { captureSpineCanvasPlacement, restoreSpineCanvasPlacement } from '@/utils/spineUtils'
 import { isInteractiveOverlayTarget, isSpineCanvasAtPoint, getEventPoint } from '@/utils/overlayUtils'
 import { initChatLayout, createDragHandlers, createResizeHandlers, createViewportHandlers } from '@/utils/windowUtils'
@@ -1045,10 +1046,10 @@ import { type FirstTurnPresetEntry, MAX_PRESETS as FIRST_TURN_MAX_PRESETS } from
 import { getAnimationOverrides, resolveAnimationOverride, validateAnimationOverrides } from '@/utils/animationOverrideUtils'
 import { choiceJumpTarget, counselingCatalog, counselingLineById, counselingLineToAction, counselingMenu, findCounselingSession, type CounselingSession } from '@/utils/counselingScript'
 import { attachCounselingScene, counselingSceneAnchor, parseCounselingSceneAnchor, type CounselingSceneAnchor } from '@/utils/counselingScene'
-import { buildSessionExportData, downloadSessionFile, reconstructChatHistory, validateSessionSettings, adjustLastSummarizedIndex, validatePlayerCharacterState, resolveProviderModelsForSessionRestore, applyValidatedSessionSettings } from '@/utils/sessionUtils'
+import { buildSessionExportData, downloadSessionFile, reconstructChatHistory, validateSessionSettings, adjustLastSummarizedIndex, validatePlayerCharacterState, applyValidatedSessionSettings } from '@/utils/sessionUtils'
 import StoryGuideModal from '@/components/common/StoryGenerator/StoryGuideModal.vue'
 import NikkeChatOverlay from '@/components/common/StoryGenerator/NikkeChatOverlay.vue'
-import { loadSettingsFromStorage, validateSavedModel, MOBILE_OPTIMIZATIONS_STORAGE_KEY, MOBILE_OPTIMIZATIONS_PREV_KEY, DEBUG_MODE_STORAGE_KEY } from '@/utils/settingsUtils'
+import { loadSettingsFromStorage, MOBILE_OPTIMIZATIONS_STORAGE_KEY, MOBILE_OPTIMIZATIONS_PREV_KEY, DEBUG_MODE_STORAGE_KEY } from '@/utils/settingsUtils'
 import { consumeModelReasoning, resetModelReasoning } from '@/utils/aiReasoningUtils'
 
 const market = useMarket()
@@ -1070,7 +1071,7 @@ const abortCurrentPlaybackForChoice = ref(false)
 const showSettings = ref(false)
 const showGuide = ref(false)
 const guidePage = ref(1)
-const apiProvider = ref('openrouter')
+const apiProvider = ref<StoryProviderId>('openrouter')
 const apiKey = ref(localStorage.getItem('nikke_api_key') || '')
 const localUrl = ref(localStorage.getItem('nikke_local_url') || 'http://localhost:5001/v1')
 const model = ref('')
@@ -1566,10 +1567,8 @@ const effectiveCharacterProfiles = computed<Record<string, any>>(() => {
 })
 const chatHistoryRef = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
-const openRouterModels = ref<any[]>([])
-const pollinationsModels = ref<any[]>([])
-const openCodeGoModels = ref<any[]>([])
-const geminiModels = ref<any[]>([])
+const modelsByProvider = ref<Partial<Record<StoryProviderId, ModelChoice[]>>>({})
+let refreshGeneration = 0
 const isRestoring = ref(false)
 const needsJsonReminder = ref(false)
 const isDev = import.meta.env.DEV
@@ -1606,19 +1605,7 @@ const setRandomLoadingMessage = () => {
 // Options
 // Handled by llmUtils.ts
 
-const modelOptions = computed(() => {
-  if (apiProvider.value === 'gemini') {
-    return geminiModels.value
-  } else if (apiProvider.value === 'openrouter') {
-    return openRouterModels.value
-  } else if (apiProvider.value === 'opencode-go') {
-    return openCodeGoModels.value
-  } else if (apiProvider.value === 'pollinations') {
-    return pollinationsModels.value
-  }
-
-  return []
-})
+const modelOptions = computed(() => modelsByProvider.value[apiProvider.value] ?? [])
 
 const providerRequiresApiKey = computed(() => apiProvider.value !== 'local')
 
@@ -1626,7 +1613,7 @@ const isApiKeyMissing = computed(() => providerRequiresApiKey.value && !apiKey.v
 
 // Computed
 
-const computedUsesWikiFetch = computed(() => usesWikiFetch(apiProvider.value, model.value))
+const computedUsesWikiFetch = computed(() => providerUsesWiki(apiProvider.value, model.value))
 
 const computedUsesPollinationsAutoFallback = computed(() => usesPollinationsAutoFallback(apiProvider.value, model.value))
 
@@ -1636,42 +1623,39 @@ const isCompactSummaryDisabled = computed(() => {
   return isApiKeyMissing.value || isLoading.value || tokenUsage.value === 'goddess' || summaryJustCompacted.value || storySummary.value.length < COMPACT_MIN_LENGTH || (summarizationSuccessCount.value === 0 && !storySummary.value)
 })
 
-const refreshPollinationsModels = async () => {
-  const trimmedApiKey = apiKey.value.trim()
+const currentRun = (messages: { role: string; content: string }[], task: StoryTask): StoryRun => {
+  return {
+    messages,
+    apiKey: apiKey.value,
+    model: apiProvider.value === 'local' ? undefined : model.value,
+    modeIsGame: mode.value === 'game',
+    reasoningEffort: reasoningEffort.value,
+    enableContextCaching: enableContextCaching.value,
+    includeAnimReason: isDebugModeActive.value,
+    includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
+    allowWebSearchFallback: allowWebSearchFallback.value,
+    signal: activeAbortController?.signal,
+    enableWebSearch: task === 'native',
+    openRouterSpeed: openRouterSpeed.value,
+    localUrl: localUrl.value,
+    prompts
+  }
+}
 
-  if (!trimmedApiKey) {
-    pollinationsModels.value = []
-    if (apiProvider.value === 'pollinations') {
-      model.value = ''
-    }
+const refreshModels = async (id: StoryProviderId, current: string | undefined): Promise<void> => {
+  const generation = ++refreshGeneration
+  const listed = await listStoryModels(id, apiKey.value.trim() || undefined)
+  if (generation !== refreshGeneration) {
+    return
+  }
+  if (listed.ok) {
+    modelsByProvider.value = { ...modelsByProvider.value, [id]: listed.choices }
+  }
+  if (apiProvider.value !== id || !listed.ok) {
     return
   }
 
-  pollinationsModels.value = await fetchPollinationsModels(trimmedApiKey)
-
-  const validModels = pollinationsModels.value.map((m) => m.value)
-  if (!model.value || !validModels.includes(model.value)) {
-    model.value = pollinationsModels.value[0]?.value || ''
-  }
-}
-
-const refreshOpenCodeGoModels = async () => {
-  openCodeGoModels.value = await fetchOpenCodeGoModels(apiKey.value.trim() || undefined)
-
-  const validModels = openCodeGoModels.value.map((m) => m.value)
-  if (!model.value || !validModels.includes(model.value)) {
-    model.value = openCodeGoModels.value[0]?.value || ''
-  }
-}
-
-const refreshGeminiModels = async () => {
-  const fetchedModels = await fetchGeminiModels(apiKey.value.trim())
-  geminiModels.value = fetchedModels.length > 0 ? fetchedModels : GEMINI_FALLBACK_MODEL_OPTIONS
-
-  const validModels = geminiModels.value.map((m) => m.value)
-  if (!model.value || !validModels.includes(model.value)) {
-    model.value = validModels.includes(GEMINI_DEFAULT_MODEL) ? GEMINI_DEFAULT_MODEL : (geminiModels.value[0]?.value || '')
-  }
+  model.value = modelAfterRefresh(id, current, listed.choices)
 }
 
 const ensureApiKeyForCurrentProvider = () => {
@@ -2030,13 +2014,11 @@ watch(chatMode, (newVal) => {
 
 watch(apiKey, async (newVal) => {
   localStorage.setItem('nikke_api_key', newVal)
-  if (apiProvider.value === 'pollinations') {
-    await refreshPollinationsModels()
-  } else if (apiProvider.value === 'opencode-go') {
-    await refreshOpenCodeGoModels()
-  } else if (apiProvider.value === 'gemini') {
-    await refreshGeminiModels()
+  if (!refetchesModelsWhenKeyChanges(apiProvider.value)) {
+    return
   }
+
+  await refreshModels(apiProvider.value, model.value || undefined)
 })
 
 watch(localUrl, (newVal) => {
@@ -2219,32 +2201,15 @@ watch(
   { deep: true }
 )
 
-watch(apiProvider, async (newVal) => {
-  localStorage.setItem('nikke_api_provider', newVal)
+watch(apiProvider, async (id) => {
+  localStorage.setItem('nikke_api_provider', id)
 
-  if (isRestoring.value) return
-
-  // Reset reasoning effort
-  reasoningEffort.value = 'default'
-
-  // Reset model when provider changes
-  if (apiProvider.value === 'gemini') {
-    model.value = ''
-    await refreshGeminiModels()
-  } else if (apiProvider.value === 'opencode-go') {
-    model.value = ''
-    await refreshOpenCodeGoModels()
-  } else if (apiProvider.value === 'openrouter') {
-    model.value = ''
-    openRouterModels.value = await fetchOpenRouterModels()
-
-    if (openRouterModels.value.length > 0) {
-      model.value = openRouterModels.value[0].value
-    }
-  } else if (apiProvider.value === 'pollinations') {
-    model.value = ''
-    await refreshPollinationsModels()
+  if (isRestoring.value) {
+    return
   }
+
+  reasoningEffort.value = 'default'
+  await refreshModels(id, model.value || undefined)
 })
 
 const checkGuide = () => {
@@ -2297,75 +2262,31 @@ const initializeSettings = async () => {
     market.live2d.backgroundImagesEnabled = stored.backgroundImagesEnabled
   }
 
-  // Provider + model (needs async model fetching)
   if (stored.apiProvider) {
-    apiProvider.value = stored.apiProvider
-
-    const validModels = await resolveProviderModelsForSessionRestore(
-      stored.apiProvider,
-      {
-        refreshOpenCodeGoModels,
-        refreshPollinationsModels,
-        refreshGeminiModels,
-        fetchOpenRouterModels: async () => await fetchOpenRouterModels()
-      },
-      {
-        get openRouterModels() {
-          return openRouterModels.value
-        },
-        set openRouterModels(value) {
-          openRouterModels.value = value
-        },
-        get openCodeGoModels() {
-          return openCodeGoModels.value
-        },
-        set openCodeGoModels(value) {
-          openCodeGoModels.value = value
-        },
-        get pollinationsModels() {
-          return pollinationsModels.value
-        },
-        set pollinationsModels(value) {
-          pollinationsModels.value = value
-        },
-        get geminiModels() {
-          return geminiModels.value
-        },
-        set geminiModels(value) {
-          geminiModels.value = value
-        }
+    const id = parseStoryProviderId(stored.apiProvider)
+    if (id) {
+      apiProvider.value = id
+      const listed = await listStoryModels(id, apiKey.value.trim() || undefined)
+      if (listed.ok) {
+        modelsByProvider.value = { ...modelsByProvider.value, [id]: listed.choices }
+        const decision = restoredModel(id, stored.model, listed.choices)
+        if (decision.model) model.value = decision.model
+        if (decision.warning) console.warn(decision.warning)
+      } else if (stored.model) {
+        model.value = stored.model
       }
-    )
-
-    if ((stored.apiProvider !== 'pollinations' && stored.apiProvider !== 'opencode-go') || validModels.length > 0) {
-      let fallbackModel: string | undefined
-      if (stored.apiProvider === 'openrouter') fallbackModel = openRouterModels.value[0]?.value
-      else if (stored.apiProvider === 'opencode-go') fallbackModel = openCodeGoModels.value[0]?.value
-      else if (stored.apiProvider === 'gemini') fallbackModel = geminiModels.value[0]?.value
-      const { model: validModel, warning } = validateSavedModel(stored.apiProvider, stored.model, validModels, fallbackModel)
-      if (validModel) model.value = validModel
-      if (warning) console.warn(warning)
     }
   }
 
-  // Ensure models are loaded for the current provider
-  if (apiProvider.value === 'opencode-go' && openCodeGoModels.value.length === 0) {
-    await refreshOpenCodeGoModels()
-  } else if (apiProvider.value === 'openrouter' && openRouterModels.value.length === 0) {
-    openRouterModels.value = await fetchOpenRouterModels()
-    if (openRouterModels.value.length > 0 && !model.value) {
-      model.value = openRouterModels.value[0].value
-    }
-  } else if (apiProvider.value === 'pollinations' && pollinationsModels.value.length === 0) {
-    await refreshPollinationsModels()
-  } else if (apiProvider.value === 'gemini' && geminiModels.value.length === 0) {
-    await refreshGeminiModels()
+  if (!modelsByProvider.value[apiProvider.value]) {
+    await refreshModels(apiProvider.value, model.value || undefined)
   }
 
   if (mobileOptimizations.value) {
     applyMobileOptimizationsState(true)
   }
 
+  await nextTick()
   isRestoring.value = false
 }
 
@@ -2597,46 +2518,22 @@ const handleFileUpload = (event: Event) => {
           mode.value = data.mode
         }
 
-        // Restore Settings — build valid model list, then validate
         if (data.settings) {
-          const savedProvider = data.settings.apiProvider
-          const validModels = await resolveProviderModelsForSessionRestore(
-            savedProvider,
-            {
-              refreshOpenCodeGoModels,
-              refreshPollinationsModels,
-              refreshGeminiModels,
-              fetchOpenRouterModels: async () => await fetchOpenRouterModels()
-            },
-            {
-              get openRouterModels() {
-                return openRouterModels.value
-              },
-              set openRouterModels(value) {
-                openRouterModels.value = value
-              },
-              get openCodeGoModels() {
-                return openCodeGoModels.value
-              },
-              set openCodeGoModels(value) {
-                openCodeGoModels.value = value
-              },
-              get pollinationsModels() {
-                return pollinationsModels.value
-              },
-              set pollinationsModels(value) {
-                pollinationsModels.value = value
-              },
-              get geminiModels() {
-                return geminiModels.value
-              },
-              set geminiModels(value) {
-                geminiModels.value = value
-              }
+          const sessionId = parseStoryProviderId(String(data.settings.apiProvider ?? ''))
+          let choices: ModelChoice[] = []
+          if (sessionId) {
+            const listed = await listStoryModels(sessionId, apiKey.value.trim() || undefined)
+            if (listed.ok) {
+              choices = listed.choices
+              modelsByProvider.value = { ...modelsByProvider.value, [sessionId]: listed.choices }
+            } else if (modelsByProvider.value[sessionId]) {
+              choices = modelsByProvider.value[sessionId] ?? []
+            } else if (typeof data.settings.model === 'string' && data.settings.model) {
+              choices = [{ label: data.settings.model, value: data.settings.model }]
             }
-          )
+          }
 
-          const validated = validateSessionSettings(data.settings, validModels)
+          const validated = validateSessionSettings(data.settings, choices)
           const modelWarning = applyValidatedSessionSettings({
             validated,
             playbackMode,
@@ -2664,6 +2561,7 @@ const handleFileUpload = (event: Event) => {
         // Ensure a minimum context window upon restore
         lastSummarizedIndex.value = adjustLastSummarizedIndex(chatHistory.value.length, lastSummarizedIndex.value, tokenUsage.value)
 
+        await nextTick()
         isRestoring.value = false
 
         // Mark this as a loaded session so overflow detection can handle large unsummarized portions
@@ -3004,18 +2902,10 @@ const runTumblingWindowSummarization = async (contextMsg: string, logTag: string
   }
 }
 
-const getProviderCalls = (): ProviderCallFunctions => ({
-  callGemini,
-  callOpenRouter,
-  callPollinations,
-  callOpenCodeGo,
-  callLocal
-})
-
-const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean, logTag: string): Promise<string> => {
+const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise<string> => {
   resetModelReasoning()
   const isFirstTurn = chatHistory.value.filter((m) => m.role === 'user').length <= 1
-  const systemPrompt = generateSystemPrompt(enableWebSearch)
+  const systemPrompt = generateSystemPrompt(false)
   let retryInstruction = isRetry ? prompts.reminders.retry : ''
 
   if (needsJsonReminder.value) {
@@ -3049,12 +2939,11 @@ const buildPromptAndDispatch = async (isRetry: boolean, enableWebSearch: boolean
   messages = injectFirstTurnReminder(messages, firstTurnReminder)
   messages = attachCounselingScene(messages, counselingScene.value)
 
-  return await dispatchToProvider(apiProvider.value, messages, enableWebSearch, getProviderCalls())
+  return await runStoryProvider(apiProvider.value, 'story', currentRun(messages, 'story'))
 }
 
 const callAI = async (isRetry: boolean = false): Promise<string> => {
   const isFirstTurn = chatHistory.value.filter((m) => m.role === 'user').length <= 1
-  const enableWebSearch = false
 
   if (isFirstTurn && chatHistory.value.length > 0) {
     const firstPrompt = chatHistory.value[chatHistory.value.length - 1].content
@@ -3087,9 +2976,9 @@ const callAI = async (isRetry: boolean = false): Promise<string> => {
     }
   }
 
-  logDebug(`[callAI] isFirstTurn: ${isFirstTurn}, enableWebSearch: ${enableWebSearch}`)
+  logDebug(`[callAI] isFirstTurn: ${isFirstTurn}, enableWebSearch: false`)
 
-  const response = await buildPromptAndDispatch(isRetry, enableWebSearch, 'callAI')
+  const response = await buildPromptAndDispatch(isRetry, 'callAI')
 
   if (isStopped.value) return response
 
@@ -3112,7 +3001,7 @@ const callAI = async (isRetry: boolean = false): Promise<string> => {
 }
 
 const callAIWithoutSearch = async (isRetry: boolean = false): Promise<string> => {
-  return await buildPromptAndDispatch(isRetry, false, 'callAIWithoutSearch')
+  return await buildPromptAndDispatch(isRetry, 'callAIWithoutSearch')
 }
 
 // Check if the AI response contains a search request for unknown characters
@@ -3130,17 +3019,17 @@ const checkForSearchRequest = async (response: string, userPrompt: string = ''):
 // We are using a Cloudflare Worker proxy to avoid CORS issues.
 // Its code is open-sourced and available in the
 
-// Wrapper functions for web search
-const wrappedSearchForCharactersWithNativeSearch = async (characterNames: string[]) => {
-  return searchForCharactersWithNativeSearch(characterNames, characterProfiles.value, apiProvider.value, callGemini, callOpenRouter, callPollinations, callOpenCodeGo)
-}
-
-const wrappedSearchForCharactersViaWikiFetch = async (characterNames: string[]) => {
-  return searchForCharactersViaWikiFetch(characterNames, characterProfiles.value, apiProvider.value, callGemini, callOpenRouter, callPollinations, callOpenCodeGo)
-}
-
 const wrappedSearchForCharacters = async (characterNames: string[]) => {
-  return searchForCharacters(characterNames, characterProfiles.value, allowWebSearchFallback.value, apiProvider.value, model.value, loadingStatus, setRandomLoadingMessage, wrappedSearchForCharactersWithNativeSearch, wrappedSearchForCharactersViaWikiFetch)
+  return searchForCharacters(
+    characterNames,
+    characterProfiles.value,
+    allowWebSearchFallback.value,
+    apiProvider.value,
+    model.value,
+    loadingStatus,
+    setRandomLoadingMessage,
+    (mode, msgs) => runStoryProvider(apiProvider.value, mode, currentRun(msgs, mode))
+  )
 }
 
 const generateSystemPrompt = (enableWebSearch: boolean) => {
@@ -3163,76 +3052,6 @@ const generateSystemPrompt = (enableWebSearch: boolean) => {
     backgroundImageMap: isBgReady ? market.live2d.backgroundImageMap : undefined,
     currentBackgroundFilename: isBgReady ? market.live2d.currentBackground : undefined,
     debugMode: isDebugModeActive.value
-  })
-}
-
-const callOpenRouter = async (messages: any[], searchUrl?: string, enableWebSearch: boolean = false) => {
-  return await callOpenRouterImpl(messages, {
-    model: model.value,
-    apiKey: apiKey.value,
-    enableContextCaching: enableContextCaching.value,
-    allowWebSearchFallback: allowWebSearchFallback.value,
-    modeIsGame: mode.value === 'game',
-    enableWebSearch,
-    searchUrl,
-    prompts,
-    reasoningEffort: reasoningEffort.value,
-    openRouterSpeed: openRouterSpeed.value,
-    includeAnimReason: isDebugModeActive.value,
-    includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
-    signal: activeAbortController?.signal
-  })
-}
-
-const callGemini = async (messages: any[], enableWebSearch: boolean = false) => {
-  return await callGeminiImpl(messages, {
-    model: model.value,
-    apiKey: apiKey.value,
-    allowWebSearchFallback: allowWebSearchFallback.value,
-    enableWebSearch,
-    reasoningEffort: reasoningEffort.value,
-    includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
-    signal: activeAbortController?.signal
-  })
-}
-
-const callPollinations = async (messages: any[], enableWebSearch: boolean = false) => {
-  return await callPollinationsImpl(messages, {
-    model: model.value,
-    apiKey: apiKey.value,
-    allowWebSearchFallback: allowWebSearchFallback.value,
-    modeIsGame: mode.value === 'game',
-    enableWebSearch,
-    reasoningEffort: reasoningEffort.value,
-    enableContextCaching: enableContextCaching.value,
-    includeAnimReason: isDebugModeActive.value,
-    includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
-    signal: activeAbortController?.signal
-  })
-}
-
-const callOpenCodeGo = async (messages: any[]) => {
-  return await callOpenCodeGoImpl(messages, {
-    model: model.value,
-    apiKey: apiKey.value,
-    modeIsGame: mode.value === 'game',
-    reasoningEffort: reasoningEffort.value,
-    enableContextCaching: enableContextCaching.value,
-    includeAnimReason: isDebugModeActive.value,
-    includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
-    signal: activeAbortController?.signal
-  })
-}
-
-const callLocal = async (messages: any[]) => {
-  return await callLocalImpl(messages, {
-    apiKey: apiKey.value,
-    localUrl: localUrl.value,
-    modeIsGame: mode.value === 'game',
-    reasoningEffort: reasoningEffort.value,
-    includeAnimReason: isDebugModeActive.value,
-    includeReasoning: isDebugModeActive.value && reasoningEffort.value !== 'none',
-    signal: activeAbortController?.signal
   })
 }
 
@@ -3348,18 +3167,13 @@ const processAIResponse = async (responseStr: string, depth: number = 0, autoRet
       // Keep any existing non-idle animations if present.
       try {
         data = await enrichActionsWithAnimations(data, {
-          apiProvider: apiProvider.value,
-          apiKey: apiKey.value,
-          model: apiProvider.value === 'local' ? undefined : model.value,
           currentCharacterId: market.live2d.current_id,
           filteredAnimations: getFilteredAnimations(market.live2d.animations),
           animationEnrichmentPrompt: prompts.animationEnrichment,
           preserveExistingAnimations: true,
-          localUrl: localUrl.value,
           rawResponseText: responseStr,
           characterAnimations: animationCache.value,
-          signal: activeAbortController?.signal,
-          openRouterSpeed: openRouterSpeed.value
+          complete: (msgs) => runStoryProvider(apiProvider.value, 'enrich', currentRun(msgs, 'enrich'))
         })
       } catch (e) {
         console.warn('[processAIResponse] Animation enrichment (fallback) failed; using existing animations', e)
@@ -4144,16 +3958,9 @@ const summarizeChunk = async (messages: { role: string; content: string }[]): Pr
 
   try {
     const summary = await summarizeChunkImpl(messages, {
-      apiProvider: apiProvider.value,
-      apiKey: apiKey.value,
-      model: model.value,
-      localUrl: localUrl.value,
       prompts,
-      enableContextCaching: enableContextCaching.value,
-      reasoningEffort: reasoningEffort.value,
-      openRouterSpeed: openRouterSpeed.value,
-      signal: activeAbortController?.signal,
-      existingSummary: storySummary.value
+      existingSummary: storySummary.value,
+      complete: (msgs) => runStoryProvider(apiProvider.value, 'summarize', currentRun(msgs, 'summarize'))
     })
 
     if (summary) {
@@ -4181,15 +3988,8 @@ const performCompaction = async (): Promise<boolean> => {
 
   try {
     const compacted = await compactSummaryImpl(storySummary.value, {
-      apiProvider: apiProvider.value,
-      apiKey: apiKey.value,
-      model: model.value,
-      localUrl: localUrl.value,
       prompts,
-      enableContextCaching: enableContextCaching.value,
-      reasoningEffort: reasoningEffort.value,
-      openRouterSpeed: openRouterSpeed.value,
-      signal: activeAbortController?.signal
+      complete: (msgs) => runStoryProvider(apiProvider.value, 'compact', currentRun(msgs, 'compact'))
     })
 
     if (compacted && compacted.trim().length > 0) {

@@ -2,13 +2,12 @@
 // These functions handle higher token limits for summarization tasks
 
 import { AIError, logDebug } from '@/utils/chatUtils'
-import { callGeminiSummarization, extractGeminiText } from '@/utils/geminiUtils'
-import { callPollinationsSummarization } from '@/utils/pollinationsUtils'
+import { extractGeminiText } from '@/utils/geminiUtils'
 import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport, OPENCODE_GO_CHAT_COMPLETIONS_URL, OPENCODE_GO_MESSAGES_URL, OPENCODE_GO_MODELS_URL, OPENCODE_GO_EXCLUDED_MODEL_IDS, OPENCODE_GO_ANTHROPIC_MODELS, OPENCODE_GO_GOOGLE_MODELS, openCodeGoGoogleGenerateContentUrl, modelsWithoutCacheControlSupport, buildStoryResponseSchema, buildOpenCodeGoHeaders, normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { captureModelReasoning, extractAnthropicTextAndReasoning, takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
 
 // Re-exports from extracted modules
-export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, providerOptions, tokenUsageOptions, getReasoningEffortOptions, openRouterSpeedOptions, normalizeOpenRouterSpeed, buildStoryResponseSchema, rotateOpenCodeGoSessionId, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
+export { modelsWithoutJsonSupport, modelsRequiringStreamForHighTokens, modelsWithoutCacheControlSupport, modelsWithoutReasoningSupport, tokenUsageOptions, openRouterSpeedOptions, normalizeOpenRouterSpeed, buildStoryResponseSchema, rotateOpenCodeGoSessionId, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
 export { callPollinationsSummarization, callPollinations, callPollinationsWithoutJson } from '@/utils/pollinationsUtils'
 export { getFilteredAnimations, enrichActionsWithAnimations, formatAnimationsForContext } from '@/utils/animationEnrichmentUtils'
 export { handleTumblingWindowSummarization, type TumblingWindowState, type TumblingWindowCallbacks, type TumblingWindowResult } from '@/utils/tumblingWindowUtils'
@@ -1239,16 +1238,9 @@ export const callOpenRouter = async (
 export const summarizeChunk = async (
   messages: { role: string; content: string }[],
   opts: {
-    apiProvider: string
-    apiKey: string
-    model: string
-    localUrl: string
     prompts: any
-    enableContextCaching?: boolean
-    reasoningEffort?: string
-    openRouterSpeed?: OpenRouterSpeed
-    signal?: AbortSignal
     existingSummary?: string
+    complete: (messages: { role: string; content: string }[]) => Promise<string>
   }
 ) => {
   if (messages.length === 0) return ''
@@ -1266,20 +1258,7 @@ export const summarizeChunk = async (
 
   const userMsg = { role: 'user', content: userContent }
   const msgs = [systemMsg, userMsg]
-
-  let summary = ''
-
-  if (opts.apiProvider === 'gemini') {
-    summary = await callGeminiSummarization(msgs, opts.apiKey, opts.model, opts.signal)
-  } else if (opts.apiProvider === 'opencode-go') {
-    summary = await callOpenCodeGoSummarization(msgs, { model: opts.model, apiKey: opts.apiKey, reasoningEffort: opts.reasoningEffort, enableContextCaching: opts.enableContextCaching, signal: opts.signal })
-  } else if (opts.apiProvider === 'openrouter') {
-    summary = await callOpenRouterSummarization(msgs, opts.apiKey, opts.model, opts.signal, opts.openRouterSpeed)
-  } else if (opts.apiProvider === 'pollinations') {
-    summary = await callPollinationsSummarization(msgs, opts.apiKey, opts.model, opts.enableContextCaching, opts.signal)
-  } else if (opts.apiProvider === 'local') {
-    summary = await callLocalSummarization(msgs, { apiKey: opts.apiKey, localUrl: opts.localUrl, signal: opts.signal, reasoningEffort: opts.reasoningEffort })
-  }
+  const summary = await opts.complete(msgs)
 
   if (summary && summary.trim().length > 0) {
     return summary
@@ -1291,15 +1270,8 @@ export const summarizeChunk = async (
 export const compactSummary = async (
   fullSummary: string,
   opts: {
-    apiProvider: string
-    apiKey: string
-    model: string
-    localUrl: string
     prompts: any
-    enableContextCaching?: boolean
-    reasoningEffort?: string
-    openRouterSpeed?: OpenRouterSpeed
-    signal?: AbortSignal
+    complete: (messages: { role: string; content: string }[]) => Promise<string>
   }
 ) => {
   if (!fullSummary || fullSummary.trim().length === 0) return ''
@@ -1308,20 +1280,7 @@ export const compactSummary = async (
   const userContent = opts.prompts.compactSummary.user.replace('${fullSummary}', fullSummary)
   const userMsg = { role: 'user', content: userContent }
   const msgs = [systemMsg, userMsg]
-
-  let summary = ''
-
-  if (opts.apiProvider === 'gemini') {
-    summary = await callGeminiSummarization(msgs, opts.apiKey, opts.model, opts.signal)
-  } else if (opts.apiProvider === 'opencode-go') {
-    summary = await callOpenCodeGoSummarization(msgs, { model: opts.model, apiKey: opts.apiKey, reasoningEffort: opts.reasoningEffort, enableContextCaching: opts.enableContextCaching, signal: opts.signal })
-  } else if (opts.apiProvider === 'openrouter') {
-    summary = await callOpenRouterSummarization(msgs, opts.apiKey, opts.model, opts.signal, opts.openRouterSpeed)
-  } else if (opts.apiProvider === 'pollinations') {
-    summary = await callPollinationsSummarization(msgs, opts.apiKey, opts.model, opts.enableContextCaching, opts.signal)
-  } else if (opts.apiProvider === 'local') {
-    summary = await callLocalSummarization(msgs, { apiKey: opts.apiKey, localUrl: opts.localUrl, signal: opts.signal, reasoningEffort: opts.reasoningEffort })
-  }
+  const summary = await opts.complete(msgs)
 
   if (summary && summary.trim().length > 0) {
     return summary

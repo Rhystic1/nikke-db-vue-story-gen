@@ -5,14 +5,6 @@ export const modelsRequiringStreamForHighTokens = ref<Set<string>>(new Set(JSON.
 export const modelsWithoutCacheControlSupport = ref<Set<string>>(new Set(JSON.parse(sessionStorage.getItem('modelsWithoutCacheControlSupport') || '[]')))
 export const modelsWithoutReasoningSupport = ref<Set<string>>(new Set(JSON.parse(sessionStorage.getItem('modelsWithoutReasoningSupport') || '[]')))
 
-export const providerOptions = [
-  { label: 'Gemini', value: 'gemini' },
-  { label: 'OpenCode Go', value: 'opencode-go' },
-  { label: 'OpenRouter', value: 'openrouter' },
-  { label: 'Pollinations', value: 'pollinations' },
-  { label: 'Local (OpenAI-compatible API)', value: 'local' }
-]
-
 const OPENCODE_GO_BASE = import.meta.env.DEV ? '/opencode-go' : 'https://opencode.ai'
 export const OPENCODE_GO_CHAT_COMPLETIONS_URL = `${OPENCODE_GO_BASE}/zen/go/v1/chat/completions`
 export const OPENCODE_GO_MESSAGES_URL = `${OPENCODE_GO_BASE}/zen/go/v1/messages`
@@ -84,43 +76,6 @@ export const tokenUsageOptions = [
   { label: 'High (60 turns)', value: 'high' },
   { label: 'Goddess', value: 'goddess' }
 ]
-
-/**
- * Returns the reasoning effort dropdown options for the given API provider.
- * In production, restricts options to 'medium' and below.
- */
-export const getReasoningEffortOptions = (provider: string): { label: string; value: string }[] => {
-  let options: { label: string; value: string }[] = []
-
-  if (provider === 'openrouter' || provider === 'pollinations' || provider === 'local' || provider === 'opencode-go') {
-    options = [
-      { label: 'Default', value: 'default' },
-      { label: 'None', value: 'none' },
-      { label: 'Minimal', value: 'minimal' },
-      { label: 'Low', value: 'low' },
-      { label: 'Medium', value: 'medium' },
-      { label: 'High', value: 'high' },
-      { label: 'Extra High', value: 'xhigh' }
-    ]
-  } else if (provider === 'gemini') {
-    options = [
-      { label: 'Default', value: 'default' },
-      { label: 'Minimal', value: 'minimal' },
-      { label: 'Low', value: 'low' },
-      { label: 'Medium', value: 'medium' },
-      { label: 'High', value: 'high' },
-      { label: 'Extra High', value: 'xhigh' }
-    ]
-  }
-
-  // Restrict options in production since anything beyond 'medium' is silly
-  if (!import.meta.env.DEV) {
-    const allowedValues = ['default', 'none', 'minimal', 'low', 'medium']
-    options = options.filter((o) => allowedValues.includes(o.value))
-  }
-
-  return options
-}
 
 export type OpenRouterSpeed = 'default' | 'slow' | 'fast'
 

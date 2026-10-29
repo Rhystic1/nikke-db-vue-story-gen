@@ -5,24 +5,15 @@ import variantCharacterProfiles from '@/utils/json/characterProfilesVariants.jso
 import prompts from '@/utils/json/prompts.json'
 import { cleanWikiContent, parseAIResponse, isWholeWordPresent } from '@/utils/chatUtils'
 import { getSelectionForName, parseSelectionValue, type CharacterCatalog } from '@/utils/storyCharacterUtils'
+import { characterSearchMode, type ChatMessage, type StoryProviderId } from '@/utils/storyProviders'
 
 // Web search state
 export const allowWebSearchFallback = ref(localStorage.getItem('nikke_allow_web_search_fallback') !== 'false')
 
-// Constants
-export const NATIVE_SEARCH_PREFIXES = ['openai/', 'anthropic/', 'perplexity/', 'x-ai/']
-export const POLLINATIONS_NATIVE_SEARCH_MODELS = ['gemini-search', 'perplexity-fast', 'perplexity-reasoning']
 export const WIKI_PROXY_URL = 'https://nikke-wiki-proxy.rhysticone.workers.dev'
 
-// Helper functions
-export const hasNativeSearch = (modelId: string) => NATIVE_SEARCH_PREFIXES.some((prefix) => modelId.startsWith(prefix))
-
-export const usesWikiFetch = (apiProvider: string, model: string) => (apiProvider === 'openrouter' && !hasNativeSearch(model)) || apiProvider === 'opencode-go'
-
-export const usesPollinationsAutoFallback = (apiProvider: string, model: string) => {
-  if (apiProvider !== 'pollinations') return false
-  // These models should NOT have auto-enabled fallback
-  return !POLLINATIONS_NATIVE_SEARCH_MODELS.includes(model)
+export const usesPollinationsAutoFallback = (provider: StoryProviderId, modelId: string) => {
+  return provider === 'pollinations' && characterSearchMode(provider, modelId) === 'wiki'
 }
 
 export const webSearchFallbackHelpText = (usesWikiFetchVal: boolean, usesPollinationsAutoFallbackVal: boolean) => {
@@ -69,7 +60,7 @@ export const fetchWikiContent = async (characterName: string): Promise<string | 
   }
 }
 
-export const searchForCharactersViaWikiFetch = async (characterNames: string[], characterProfiles: Record<string, any>, apiProvider: string, callGemini: Function, callOpenRouter: Function, callPollinations: Function, callOpenCodeGo: Function): Promise<void> => {
+const searchForCharactersViaWikiFetch = async (characterNames: string[], characterProfiles: Record<string, any>, complete: (messages: ChatMessage[]) => Promise<string>): Promise<void> => {
   logDebug('[searchForCharactersViaWikiFetch] Fetching wiki pages for:', characterNames)
 
   for (const name of characterNames) {
@@ -97,20 +88,7 @@ export const searchForCharactersViaWikiFetch = async (characterNames: string[], 
 
     while (attempts < maxAttempts && !success) {
       try {
-        let result: string
-
-        if (apiProvider === 'gemini') {
-          result = await callGemini(messages, false)
-        } else if (apiProvider === 'opencode-go') {
-          result = await callOpenCodeGo(messages)
-        } else if (apiProvider === 'openrouter') {
-          result = await callOpenRouter(messages, false)
-        } else if (apiProvider === 'pollinations') {
-          result = await callPollinations(messages, false)
-        } else {
-          // Fallback to OpenRouter for other providers
-          result = await callOpenRouter(messages, false)
-        }
+        const result = await complete(messages)
 
         let jsonStr = result.replace(/```json\n?|\n?```/g, '').trim()
         const start = jsonStr.indexOf('{')
@@ -153,7 +131,7 @@ export const searchForCharactersViaWikiFetch = async (characterNames: string[], 
   }
 }
 
-export const searchForCharactersWithNativeSearch = async (characterNames: string[], characterProfiles: Record<string, any>, apiProvider: string, callGemini: Function, callOpenRouter: Function, callPollinations: Function, callOpenCodeGo: Function): Promise<void> => {
+const searchForCharactersWithNativeSearch = async (characterNames: string[], characterProfiles: Record<string, any>, complete: (messages: ChatMessage[]) => Promise<string>): Promise<void> => {
   logDebug('[searchForCharactersWithNativeSearch] Searching for:', characterNames)
 
   for (const name of characterNames) {
@@ -177,19 +155,7 @@ export const searchForCharactersWithNativeSearch = async (characterNames: string
     while (attempts < maxAttempts && !success) {
       attempts++
       try {
-        let result: string
-
-        if (apiProvider === 'gemini') {
-          result = await callGemini(messages, true)
-        } else if (apiProvider === 'opencode-go') {
-          result = await callOpenCodeGo(messages)
-        } else if (apiProvider === 'openrouter') {
-          result = await callOpenRouter(messages, true)
-        } else if (apiProvider === 'pollinations') {
-          result = await callPollinations(messages, true)
-        } else {
-          throw new Error(`Unsupported provider for native search: ${apiProvider}`)
-        }
+        const result = await complete(messages)
 
         let jsonStr = result.replace(/```json\n?|\n?```/g, '').trim()
         const start = jsonStr.indexOf('{')
@@ -232,7 +198,7 @@ export const searchForCharactersWithNativeSearch = async (characterNames: string
   }
 }
 
-export const searchForCharacters = async (characterNames: string[], characterProfiles: Record<string, any>, allowWebSearchFallback: boolean, apiProvider: string, model: string, loadingStatus: any, setRandomLoadingMessage: Function, searchForCharactersWithNativeSearch: Function, searchForCharactersViaWikiFetch: Function): Promise<boolean> => {
+export const searchForCharacters = async (characterNames: string[], characterProfiles: Record<string, any>, allowWebSearchFallback: boolean, provider: StoryProviderId, model: string, loadingStatus: { value: string }, setRandomLoadingMessage: () => void, complete: (mode: 'native' | 'wiki', messages: ChatMessage[]) => Promise<string>): Promise<boolean> => {
   logDebug('[searchForCharacters] Searching for:', characterNames)
 
   loadingStatus.value = 'Searching for characters in the database...'
@@ -284,8 +250,8 @@ export const searchForCharacters = async (characterNames: string[], characterPro
     return false
   }
 
-  // If fallback is disabled, stop here
-  if (!allowWebSearchFallback) {
+  const mode = characterSearchMode(provider, model)
+  if (!allowWebSearchFallback || mode === 'none') {
     logDebug('[searchForCharacters] Web search fallback disabled. Skipping search for:', charsToSearch)
     setRandomLoadingMessage()
     return false
@@ -293,39 +259,13 @@ export const searchForCharacters = async (characterNames: string[], characterPro
 
   loadingStatus.value = 'Searching the web for characters...'
 
-  // For Gemini, use native search
-  if (apiProvider === 'gemini') {
-    await searchForCharactersWithNativeSearch(charsToSearch)
+  if (mode === 'native') {
+    await searchForCharactersWithNativeSearch(charsToSearch, characterProfiles, (messages) => complete('native', messages))
     return true
   }
 
-  // For OpenRouter, check if model has native search
-  if (apiProvider === 'openrouter') {
-    if (hasNativeSearch(model)) {
-      await searchForCharactersWithNativeSearch(charsToSearch)
-    } else {
-      // For models without native search, fetch wiki pages directly and have the model summarize
-      await searchForCharactersViaWikiFetch(charsToSearch)
-    }
-    return true
-  }
-
-  if (apiProvider === 'opencode-go') {
-    await searchForCharactersViaWikiFetch(charsToSearch)
-    return true
-  }
-
-  // Same thing for Pollinations
-  if (apiProvider === 'pollinations') {
-    if (POLLINATIONS_NATIVE_SEARCH_MODELS.includes(model)) {
-      await searchForCharactersWithNativeSearch(charsToSearch)
-    } else {
-      await searchForCharactersViaWikiFetch(charsToSearch)
-    }
-    return true
-  }
-
-  return false
+  await searchForCharactersViaWikiFetch(charsToSearch, characterProfiles, (messages) => complete('wiki', messages))
+  return true
 }
 
 // ── Search request detection ──────────────────────────────────────────

@@ -1,9 +1,9 @@
 // Session save/restore utility functions
 // Extracted from ChatInterface.vue to keep serialization logic testable and reusable.
 
-import { tokenUsageOptions, providerOptions } from '@/utils/llmUtils'
-import { GEMINI_DEFAULT_MODEL } from '@/utils/geminiUtils'
+import { tokenUsageOptions } from '@/utils/llmUtils'
 import { normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
+import { parseStoryProviderId, restoredModel, type ModelChoice, type StoryProviderId } from '@/utils/storyProviders'
 import { type StoryCharacterEntry } from '@/utils/storyCharacterUtils'
 
 // --- Types ---
@@ -235,55 +235,11 @@ export interface ValidatedSessionSettings {
   openRouterSpeed?: OpenRouterSpeed
   autoCompactSummaries?: boolean
   autoCompactFrequency?: number
-  apiProvider?: string
+  apiProvider?: StoryProviderId
   model?: string
   backgroundImagesEnabled?: boolean
   /** If the saved model was invalid, this is the warning message to show. */
   modelWarning?: string
-  /** If the provider uses a fetched model list, we need to fetch models before validating. */
-  needsOpenRouterModelFetch?: boolean
-}
-
-export type SessionRestoreProviders = {
-  refreshOpenCodeGoModels: () => Promise<void>
-  refreshPollinationsModels: () => Promise<void>
-  refreshGeminiModels: () => Promise<void>
-  fetchOpenRouterModels: () => Promise<Array<{ value: string }>>
-}
-
-export type SessionRestoreModelState = {
-  openRouterModels: Array<{ value: string }>
-  openCodeGoModels: Array<{ value: string }>
-  pollinationsModels: Array<{ value: string }>
-  geminiModels: Array<{ value: string }>
-}
-
-export async function resolveProviderModelsForSessionRestore(
-  provider: string,
-  deps: SessionRestoreProviders,
-  state: SessionRestoreModelState
-): Promise<string[]> {
-  if (provider === 'opencode-go') {
-    await deps.refreshOpenCodeGoModels()
-    return state.openCodeGoModels.map((m) => m.value)
-  }
-
-  if (provider === 'openrouter') {
-    state.openRouterModels = await deps.fetchOpenRouterModels()
-    return state.openRouterModels.map((m) => m.value)
-  }
-
-  if (provider === 'pollinations') {
-    await deps.refreshPollinationsModels()
-    return state.pollinationsModels.map((m) => m.value)
-  }
-
-  if (provider === 'gemini') {
-    await deps.refreshGeminiModels()
-    return state.geminiModels.map((m) => m.value)
-  }
-
-  return []
 }
 
 export type ApplyValidatedSessionSettingsParams = {
@@ -302,7 +258,7 @@ export type ApplyValidatedSessionSettingsParams = {
   openRouterSpeed: { value: OpenRouterSpeed }
   autoCompactSummaries: { value: boolean }
   autoCompactFrequency: { value: number }
-  apiProvider: { value: string }
+  apiProvider: { value: StoryProviderId }
   model: { value: string }
 }
 
@@ -354,9 +310,9 @@ export function validatePlayerCharacterState(value: any): PlayerCharacterSession
  * Does NOT apply values to refs — that is left to the caller.
  *
  * @param settings  The `data.settings` object from the parsed session file.
- * @param validModels  List of valid model IDs for the saved provider (already fetched).
+ * @param listed  Catalog choices for the saved provider. The caller fetches them with listStoryModels.
  */
-export function validateSessionSettings(settings: any, validModels: string[]): ValidatedSessionSettings {
+export function validateSessionSettings(settings: any, listed: readonly ModelChoice[]): ValidatedSessionSettings {
   const result: ValidatedSessionSettings = {}
 
   if (!settings) return result
@@ -406,24 +362,16 @@ export function validateSessionSettings(settings: any, validModels: string[]): V
     result.backgroundImagesEnabled = settings.backgroundImagesEnabled
   }
 
-  // Provider + model
-  const savedProvider = settings.apiProvider
-  const savedModel = settings.model
-
-  if (savedProvider && providerOptions.some((p) => p.value === savedProvider)) {
-    result.apiProvider = savedProvider
-    result.needsOpenRouterModelFetch = savedProvider === 'openrouter' || savedProvider === 'opencode-go'
-
-    if (savedModel && validModels.includes(savedModel)) {
-      result.model = savedModel
-    } else {
-      // Fallback to default
-      if (savedProvider === 'gemini') result.model = validModels[0] ?? GEMINI_DEFAULT_MODEL
-      else if ((savedProvider === 'openrouter' || savedProvider === 'opencode-go') && validModels.length > 0) result.model = validModels[0]
-
-      if (savedModel) {
-        result.modelWarning = `Warning: Saved model '${savedModel}' is invalid or unavailable. Using default.`
-      }
+  const id = parseStoryProviderId(String(settings?.apiProvider ?? ''))
+  if (id) {
+    result.apiProvider = id
+    const savedModel = typeof settings.model === 'string' ? settings.model : undefined
+    const decision = restoredModel(id, savedModel, listed)
+    if (decision.model) {
+      result.model = decision.model
+    }
+    if (decision.warning) {
+      result.modelWarning = `Warning: ${decision.warning}`
     }
   }
 

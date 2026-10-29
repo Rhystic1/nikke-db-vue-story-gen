@@ -12,6 +12,50 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 'latest'
   },
+  overrides: [
+    {
+      files: ['src/components/**/*.{js,ts,vue}', 'src/utils/**/*.{js,ts,vue}'],
+      excludedFiles: [
+        'src/utils/storyProviders.ts',
+        'src/utils/llmUtils.ts',
+        'src/utils/geminiUtils.ts',
+        'src/utils/pollinationsUtils.ts',
+        'src/**/*.spec.ts'
+      ],
+      rules: {
+        'no-restricted-imports': ['error', {
+          paths: [
+            {
+              name: '@/utils/llmUtils',
+              importNames: [
+                'callOpenCodeGo',
+                'callOpenCodeGoSummarization',
+                'fetchOpenCodeGoModels',
+                'callGemini',
+                'callOpenRouter',
+                'callPollinations',
+                'callLocal',
+                'fetchGeminiModels',
+                'fetchOpenRouterModels',
+                'fetchPollinationsModels'
+              ],
+              message: 'Call runStoryProvider or listStoryModels.'
+            },
+            {
+              name: '@/utils/geminiUtils',
+              importNames: ['callGemini', 'fetchGeminiModels'],
+              message: 'Call runStoryProvider or listStoryModels.'
+            },
+            {
+              name: '@/utils/pollinationsUtils',
+              importNames: ['callPollinations', 'fetchPollinationsModels'],
+              message: 'Call runStoryProvider or listStoryModels.'
+            }
+          ]
+        }]
+      }
+    }
+  ],
   rules: {
     '@typescript-eslint/type-annotation-spacing': 'error',
     'arrow-parens': ['error', 'always'],

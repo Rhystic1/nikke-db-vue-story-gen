@@ -13,11 +13,36 @@ const catalog = {
   ]
 }
 
+type RecordedRequest = {
+  url: string
+  body: any
+  headers: Record<string, string>
+}
+
+let requests: RecordedRequest[] = []
+
 const jsonResponse = (status: number, body: unknown) => {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' }
   })
+}
+
+const headerRecord = (headers: HeadersInit | undefined): Record<string, string> => {
+  if (!headers) {
+
+    return {}
+  }
+  if (headers instanceof Headers) {
+
+    return Object.fromEntries(headers.entries())
+  }
+  if (Array.isArray(headers)) {
+
+    return Object.fromEntries(headers)
+  }
+
+  return headers
 }
 
 const storyRun = (model: string, reasoningEffort: string) => {
@@ -30,8 +55,23 @@ const storyRun = (model: string, reasoningEffort: string) => {
   }
 }
 
+const stubFetch = (impl: (request: RecordedRequest) => Response | Promise<Response>) => {
+  vi.stubGlobal('fetch', vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    const bodyText = typeof init?.body === 'string' ? init.body : undefined
+    const request = {
+      url: String(url),
+      body: bodyText ? JSON.parse(bodyText) : undefined,
+      headers: headerRecord(init?.headers)
+    }
+    requests.push(request)
+
+    return impl(request)
+  }))
+}
+
 describe('paid OpenCode catalog', () => {
   afterEach(() => {
+    requests = []
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     sessionStorage.removeItem('nikke_opencode_no_json_schema')
@@ -41,23 +81,20 @@ describe('paid OpenCode catalog', () => {
   })
 
   it('lists only glm-5.3 and calls the paid models url', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, catalog))
-    vi.stubGlobal('fetch', fetchMock)
+    stubFetch(() => jsonResponse(200, catalog))
 
     const listed = await listStoryModels('opencode', 'test-key')
 
     expect(listed).toEqual({ ok: true, choices: [{ label: 'glm-5.3', value: 'glm-5.3' }] })
-    const url = String(fetchMock.mock.calls[0][0])
-    expect(url).toContain('/inference/v1/models')
-    expect(url).not.toContain('/zen/')
-    const headers = fetchMock.mock.calls[0][1].headers
-    expect(headers.Authorization).toBe('Bearer test-key')
-    expect(headers['x-api-key']).toBeUndefined()
-    expect(headers['x-opencode-client']).toBe('nikke-db-story-gen')
+    expect(requests[0].url).toContain('/inference/v1/models')
+    expect(requests[0].url).not.toContain('/zen/')
+    expect(requests[0].headers.Authorization).toBe('Bearer test-key')
+    expect(requests[0].headers['x-api-key']).toBeUndefined()
+    expect(requests[0].headers['x-opencode-client']).toBe('nikke-db-story-gen')
   })
 
   it('keeps Go ids that the paid list drops', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, {
+    stubFetch(() => jsonResponse(200, {
       data: [
         { id: 'glm-5.3' },
         { id: 'beam-free' },
@@ -65,7 +102,6 @@ describe('paid OpenCode catalog', () => {
         { id: 'minimax-m2.5' }
       ]
     }))
-    vi.stubGlobal('fetch', fetchMock)
 
     const listed = await listStoryModels('opencode-go', 'test-key')
 
@@ -77,9 +113,8 @@ describe('paid OpenCode catalog', () => {
         { label: 'glm-5.3', value: 'glm-5.3' }
       ]
     })
-    const url = String(fetchMock.mock.calls[0][0])
-    expect(url).toContain('/zen/go/v1/models')
-    expect(url).not.toContain('/inference/v1/models')
+    expect(requests[0].url).toContain('/zen/go/v1/models')
+    expect(requests[0].url).not.toContain('/inference/v1/models')
   })
 
   it('rejects opencode-free and accepts opencode', () => {
@@ -104,7 +139,7 @@ describe('paid OpenCode catalog', () => {
   })
 
   it('returns ok false for a non-OK list response', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(403, { error: { message: 'forbidden' } })))
+    stubFetch(() => jsonResponse(403, { error: { message: 'forbidden' } }))
 
     const listed = await listStoryModels('opencode', 'test-key')
 
@@ -112,9 +147,9 @@ describe('paid OpenCode catalog', () => {
   })
 
   it('returns ok false when the catalog request fails', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => {
+    stubFetch(() => {
       throw new Error('offline')
-    }))
+    })
 
     const listed = await listStoryModels('opencode', 'test-key')
 
@@ -122,98 +157,86 @@ describe('paid OpenCode catalog', () => {
   })
 
   it('sends reasoning_effort for glm-5.3 on the paid chat url', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, {
+    stubFetch(() => jsonResponse(200, {
       choices: [{ message: { content: 'ok' } }]
     }))
-    vi.stubGlobal('fetch', fetchMock)
 
     const text = await runStoryProvider('opencode', 'story', storyRun('glm-5.3', 'high'))
 
     expect(text).toBe('ok')
-    const url = String(fetchMock.mock.calls[0][0])
-    expect(url).toContain('/inference/openai/v1/chat/completions')
-    expect(url).not.toContain('/zen/')
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.reasoning_effort).toBe('high')
-    expect(body.reasoning).toBeUndefined()
-    expect(body.response_format.json_schema.name).toBe('StoryResponse')
-    const headers = fetchMock.mock.calls[0][1].headers
-    expect(headers.Authorization).toBe('Bearer test-key')
-    expect(headers['x-api-key']).toBeUndefined()
-    expect(headers['x-opencode-client']).toBe('nikke-db-story-gen')
+    expect(requests[0].url).toContain('/inference/openai/v1/chat/completions')
+    expect(requests[0].url).not.toContain('/zen/')
+    expect(requests[0].body.reasoning_effort).toBe('high')
+    expect(requests[0].body.reasoning).toBeUndefined()
+    expect(requests[0].body.response_format.json_schema.name).toBe('StoryResponse')
+    expect(requests[0].headers.Authorization).toBe('Bearer test-key')
+    expect(requests[0].headers['x-api-key']).toBeUndefined()
+    expect(requests[0].headers['x-opencode-client']).toBe('nikke-db-story-gen')
   })
 
   it('sends an OpenAI reasoning object for other paid ids', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, {
+    stubFetch(() => jsonResponse(200, {
       choices: [{ message: { content: 'ok' } }]
     }))
-    vi.stubGlobal('fetch', fetchMock)
 
     await runStoryProvider('opencode', 'story', storyRun('kimi-k2.6', 'low'))
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.reasoning).toEqual({ effort: 'low', exclude: false })
-    expect(body.reasoning_effort).toBeUndefined()
+    expect(requests[0].body.reasoning).toEqual({ effort: 'low', exclude: false })
+    expect(requests[0].body.reasoning_effort).toBeUndefined()
   })
 
   it('omits response_format for summarize', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, {
+    stubFetch(() => jsonResponse(200, {
       choices: [{ message: { content: 'sum' } }]
     }))
-    vi.stubGlobal('fetch', fetchMock)
 
     const text = await runStoryProvider('opencode', 'summarize', storyRun('glm-5.3', 'low'))
 
     expect(text).toBe('sum')
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.response_format).toBeUndefined()
-    expect(body.reasoning_effort).toBe('low')
+    expect(requests[0].body.response_format).toBeUndefined()
+    expect(requests[0].body.reasoning_effort).toBe('low')
   })
 
   it('remembers a schema rejection and omits it on the retry and the next call', async () => {
-    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
-      const body = JSON.parse(String(init.body))
-      if (body.response_format) {
+    stubFetch((request) => {
+      if (request.body?.response_format) {
 
         return jsonResponse(400, { error: { message: 'response_format is not supported' } })
       }
 
       return jsonResponse(200, { choices: [{ message: { content: 'plain' } }] })
     })
-    vi.stubGlobal('fetch', fetchMock)
 
     const text = await runStoryProvider('opencode', 'story', storyRun('kimi-k2.6', 'default'))
 
     expect(text).toBe('plain')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).response_format).toBeUndefined()
+    expect(requests).toHaveLength(2)
+    expect(requests[1].body.response_format).toBeUndefined()
     expect(JSON.parse(sessionStorage.getItem('nikke_opencode_no_json_schema') || '[]')).toContain('kimi-k2.6')
     expect(modelsWithoutJsonSupport.value.has('kimi-k2.6')).toBe(false)
 
-    fetchMock.mockClear()
+    requests = []
     await runStoryProvider('opencode', 'story', storyRun('kimi-k2.6', 'default'))
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).response_format).toBeUndefined()
+    expect(requests).toHaveLength(1)
+    expect(requests[0].body.response_format).toBeUndefined()
   })
 
   it('throws RATE_LIMITED on HTTP 429', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(429, { error: { message: 'slow down' } })))
+    stubFetch(() => jsonResponse(429, { error: { message: 'slow down' } }))
 
     await expect(runStoryProvider('opencode', 'story', storyRun('glm-5.3', 'default'))).rejects.toThrow('RATE_LIMITED')
   })
 
   it('keeps Go chat on the Go path', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse(200, {
+    stubFetch(() => jsonResponse(200, {
       choices: [{ message: { content: 'go' } }]
     }))
-    vi.stubGlobal('fetch', fetchMock)
 
     const text = await runStoryProvider('opencode-go', 'story', storyRun('kimi-k2.6', 'default'))
 
     expect(text).toBe('go')
-    const url = String(fetchMock.mock.calls[0][0])
-    expect(url).toContain('/zen/go/v1/chat/completions')
-    expect(url).not.toContain('/inference/openai/')
+    expect(requests[0].url).toContain('/zen/go/v1/chat/completions')
+    expect(requests[0].url).not.toContain('/inference/openai/')
   })
 })

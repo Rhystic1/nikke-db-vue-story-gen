@@ -1,8 +1,8 @@
 import type { OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { buildOpenCodeGoHeaders } from '@/utils/providerConfigUtils'
-import { buildOpenCodeGoChatRequestBody, callLocal, callLocalSummarization, callOpenCodeGo, callOpenCodeGoSummarization, callOpenRouter, callOpenRouterSummarization, fetchOpenCodeGoModels, fetchOpenRouterModels } from '@/utils/llmUtils'
+import { buildOpenCodeGoChatRequestBody, callLocal, callLocalSummarization, callOpenCodeGo, callOpenCodeGoSummarization, callOpenRouter, callOpenRouterSummarization, fetchOpenCodeGoModels, fetchOpenRouterModels, fetchPollinationsModels } from '@/utils/llmUtils'
 import { GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, callGemini, callGeminiSummarization, fetchGeminiModels } from '@/utils/geminiUtils'
-import { callPollinations, callPollinationsSummarization, fetchPollinationsModels } from '@/utils/pollinationsUtils'
+import { callPollinations, callPollinationsSummarization } from '@/utils/pollinationsUtils'
 import { takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
 import { AIError } from '@/utils/errorUtils'
 
