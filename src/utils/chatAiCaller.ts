@@ -39,3 +39,25 @@ export function injectFirstTurnReminder(messages: any[], reminder: string): any[
 
   return result
 }
+
+const TURN_CONTEXT_HEADER = '[SCENE CONTEXT FOR THIS TURN — provided by the system, not written by the player]\n'
+
+export function attachTurnContext<T extends { role: string; content: string }>(messages: readonly T[], context: string): T[] {
+  if (!context) {
+
+    return messages.slice()
+  }
+
+  const block = `${TURN_CONTEXT_HEADER}${context}`
+  const result = messages.map((message) => ({ ...message }))
+  const last = result[result.length - 1]
+  if (last && last.role === 'user') {
+    result[result.length - 1] = { ...last, content: `${last.content}\n\n${block}` }
+
+    return result
+  }
+
+  result.push({ role: 'user', content: block } as T)
+
+  return result
+}

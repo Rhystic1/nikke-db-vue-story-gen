@@ -127,12 +127,14 @@ const isOpenCodeGoGoogleModel = (model: string) => OPENCODE_GO_GOOGLE_MODELS.has
 const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching: boolean, model: string) => {
   const shouldAddCacheControl = enableContextCaching && !modelsWithoutCacheControlSupport.value.has(model)
 
-  let systemContent: string | undefined
+  const systemParts: string[] = []
+  let fallbackSystem: any
   const anthropicMessages: any[] = []
 
   for (const msg of messages) {
     if (msg.role === 'system') {
-      systemContent = typeof msg.content === 'string' ? msg.content : msg.content
+      if (typeof msg.content === 'string') systemParts.push(msg.content)
+      else fallbackSystem = msg.content
       continue
     }
     anthropicMessages.push({
@@ -141,18 +143,19 @@ const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching:
     })
   }
 
+  const systemContent = systemParts.length > 0 ? systemParts.join('\n\n') : fallbackSystem
+
   if (shouldAddCacheControl && systemContent) {
     const systemBlock = [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral' } }]
-    if (anthropicMessages.length >= 1) {
-      const lastIdx = anthropicMessages.length - 1
-      const lastMsg = anthropicMessages[lastIdx]
-      if (typeof lastMsg.content === 'string') {
-        anthropicMessages[lastIdx] = {
-          ...lastMsg,
-          content: [{ type: 'text', text: lastMsg.content, cache_control: { type: 'ephemeral' } }]
-        }
+    const markerIdx = anthropicMessages.length - 2
+    if (markerIdx >= 0 && typeof anthropicMessages[markerIdx].content === 'string') {
+      const markerMsg = anthropicMessages[markerIdx]
+      anthropicMessages[markerIdx] = {
+        ...markerMsg,
+        content: [{ type: 'text', text: markerMsg.content, cache_control: { type: 'ephemeral' } }]
       }
     }
+
     return { system: systemBlock, messages: anthropicMessages, shouldAddCacheControl }
   }
 
