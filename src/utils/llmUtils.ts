@@ -122,6 +122,7 @@ const sendOpenAiCompatibleRequest = async (url: string, opts: { requestBody: any
 }
 
 const isOpenCodeGoAnthropicModel = (model: string) => OPENCODE_GO_ANTHROPIC_MODELS.has(model)
+const isOpenRouterGeminiModel = (model: string) => model.startsWith('google/gemini')
 const isOpenCodeGoGoogleModel = (model: string) => OPENCODE_GO_GOOGLE_MODELS.has(model)
 
 const convertOpenAiToAnthropicMessages = (messages: any[], enableContextCaching: boolean, model: string) => {
@@ -1091,7 +1092,9 @@ export const callOpenRouter = async (
       }
     }
 
-    if (processedMessages.length >= 2) {
+    // OpenRouter uses only the last breakpoint for Gemini and its cache TTL never refreshes,
+    // so a moving history breakpoint rewrites the cache every turn. The system block alone is written once and re-read.
+    if (processedMessages.length >= 2 && !isOpenRouterGeminiModel(model)) {
       const lastHistoryIndex = processedMessages.length - 2
       if (lastHistoryIndex > 0 || (lastHistoryIndex === 0 && processedMessages[0].role !== 'system')) {
         const msg = processedMessages[lastHistoryIndex]
