@@ -1,5 +1,5 @@
 import { AIError } from '@/utils/chatUtils'
-import { captureModelReasoning } from '@/utils/aiReasoningUtils'
+import { captureModelReasoning, logPromptCacheUsage } from '@/utils/aiReasoningUtils'
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 
@@ -130,6 +130,8 @@ export const extractGeminiText = (data: any, opts?: { checkProhibitedContent?: b
   if (opts?.includeReasoning) {
     captureModelReasoning(thoughtTexts.join('\n'))
   }
+
+  logPromptCacheUsage(data)
 
   return textPart.text
 }

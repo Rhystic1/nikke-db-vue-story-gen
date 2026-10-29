@@ -1429,11 +1429,17 @@ export type SystemPromptParams = {
   debugMode?: boolean
 }
 
+export interface StoryPromptParts {
+  system: string
+  turnContext: string
+}
+
 /**
- * Build the full system prompt string.
+ * Build the story prompt parts.
+ * `system` changes with settings, mode, and cast. `turnContext` changes with the scene.
  * Pure function — no Vue reactivity, no side effects.
  */
-export const generateSystemPrompt = (params: SystemPromptParams): string => {
+export const generateSystemPrompt = (params: SystemPromptParams): StoryPromptParts => {
   const { enableWebSearch, effectiveCharacterProfiles: originalProfiles, rosterRows, currentLive2dId, mode, godModeEnabled, realisticModeEnabled, lowContextMode, characterCatalog, currentUserPrompt, chatHistory, playerCharacterName = 'Commander', customPlayerCharacterActive = false } = params
 
   let profiles = originalProfiles
@@ -1502,14 +1508,6 @@ export const generateSystemPrompt = (params: SystemPromptParams): string => {
   const relevantCharacterIds: string[] = []
   const relevantCharacterNames: string[] = []
 
-  if (currentLive2dId) {
-    const currentChar = (l2d as any[]).find((c) => c.id === currentLive2dId)
-    if (currentChar) {
-      relevantCharacterIds.push(`${currentChar.name} = ${currentChar.id}`)
-      relevantCharacterNames.push(currentChar.name)
-    }
-  }
-
   for (const name of knownCharacterNames) {
     // Skip base character profiles that are loaded purely for context
     // (because a variant is the active character).  Prevents the AI
@@ -1566,6 +1564,23 @@ export const generateSystemPrompt = (params: SystemPromptParams): string => {
   const relevantHonorifics: Record<string, string> = {}
   for (const name of relevantCharacterNames) {
     relevantHonorifics[name] = getHonorific(name)
+  }
+
+  // On-screen identity is per turn, so it stays out of the cached session lists.
+  const currentLive2dCharacter = currentLive2dId
+    ? (l2d as any[]).find((character) => character.id === currentLive2dId)
+    : undefined
+  const currentCharacterTurnBlocks: string[] = []
+  if (currentLive2dCharacter) {
+    const idLine = `${currentLive2dCharacter.name} = ${currentLive2dCharacter.id}`
+    const idListed = relevantCharacterIds.some((entry) => entry.endsWith(` = ${currentLive2dCharacter.id}`))
+    const honorificListed = Object.prototype.hasOwnProperty.call(relevantHonorifics, currentLive2dCharacter.name)
+    if (!honorificListed) {
+      currentCharacterTurnBlocks.push(`  ${prompts.systemPrompt.honorifics.header}\n  ${JSON.stringify({ [currentLive2dCharacter.name]: getHonorific(currentLive2dCharacter.name) }, null, 2)}`)
+    }
+    if (!idListed) {
+      currentCharacterTurnBlocks.push(`  ${prompts.systemPrompt.idReference}\n  ${idLine}`)
+    }
   }
 
   const replacePlayerCharacterToken = (value: string) => value.replaceAll('{playerCharacter}', playerCharacterName)
@@ -1638,7 +1653,8 @@ export const generateSystemPrompt = (params: SystemPromptParams): string => {
     ? `\n  ${(prompts.systemPrompt as any).debugAnimReasonInstruction}\n`
     : ''
 
-  let backgroundSection = ''
+  let backgroundStable = ''
+  let backgroundTurn = ''
   if (isBackgroundEnabled) {
     const availableFilenames = [...params.backgroundImageMap!.keys()].sort()
     const relevantLocationNames = relevantLocations.map((location) => location.name)
@@ -1652,26 +1668,22 @@ export const generateSystemPrompt = (params: SystemPromptParams): string => {
       availableFilenames
     })
 
-    backgroundSection = `
+    backgroundStable = `
 
 ${(prompts.systemPrompt as any).backgroundImages.header}
 
-Available Background Scene Keys:
+${(prompts.systemPrompt as any).backgroundImages.schemaAddition}
+`
+    backgroundTurn = `Available Background Scene Keys:
 ${JSON.stringify(availableScenes, null, 2)}
 
 Current Background Scene:
-${currentBackground ? JSON.stringify(currentBackground, null, 2) : 'none'}
-
-${(prompts.systemPrompt as any).backgroundImages.schemaAddition}
-`
+${currentBackground ? JSON.stringify(currentBackground, null, 2) : 'none'}`
   }
 
-  const prompt = `${prompts.systemPrompt.intro}
+  const system = `${prompts.systemPrompt.intro}
 
   ${modePrompt}
-
-  ${prompts.systemPrompt.honorifics.header}
-  ${Object.keys(relevantHonorifics).length > 0 ? JSON.stringify(relevantHonorifics, null, 2) : '(No characters loaded yet - honorifics will be provided once characters appear)'}
 
   ${honorificRules}
 
@@ -1684,22 +1696,29 @@ ${(prompts.systemPrompt as any).backgroundImages.schemaAddition}
   ${jsonStructure}
   ${debugAnimReasonInstruction}
 
-  ${prompts.systemPrompt.knownProfiles}
-  ${knownCharacterNames.length > 0 ? JSON.stringify(getFilteredProfilesForAI(), null, 2) : prompts.systemPrompt.noProfilesMessage}
-
-  ${prompts.systemPrompt.knownLocations}
-  ${relevantLocations.length > 0 ? JSON.stringify(getFilteredLocationsForAI(relevantLocations), null, 2) : prompts.systemPrompt.noLocationsMessage}
-
-  ${prompts.systemPrompt.idReference}
-  ${relevantCharacterIds.length > 0 ? relevantCharacterIds.join(', ') : prompts.systemPrompt.noIdsMessage}
-
   ${prompts.systemPrompt.instructions.base}
   ${modeInstructions}
   ${prompts.systemPrompt.instructions.closing}
-  ${backgroundSection}
+  ${backgroundStable}
   ${godModeText}
   ${realisticModeText}
+
+  ${prompts.systemPrompt.honorifics.header}
+  ${Object.keys(relevantHonorifics).length > 0 ? JSON.stringify(relevantHonorifics, null, 2) : '(No characters loaded yet - honorifics will be provided once characters appear)'}
+
+  ${prompts.systemPrompt.knownProfiles}
+  ${knownCharacterNames.length > 0 ? JSON.stringify(getFilteredProfilesForAI(), null, 2) : prompts.systemPrompt.noProfilesMessage}
+
+  ${prompts.systemPrompt.idReference}
+  ${relevantCharacterIds.length > 0 ? relevantCharacterIds.join(', ') : prompts.systemPrompt.noIdsMessage}
   `
 
-  return prompt
+  const locationsBlock = `  ${prompts.systemPrompt.knownLocations}
+  ${relevantLocations.length > 0 ? JSON.stringify(getFilteredLocationsForAI(relevantLocations), null, 2) : prompts.systemPrompt.noLocationsMessage}`
+  const turnBlocks = [locationsBlock]
+  if (backgroundTurn) turnBlocks.push(backgroundTurn)
+  turnBlocks.push(...currentCharacterTurnBlocks)
+  const turnContext = turnBlocks.join('\n\n')
+
+  return { system, turnContext }
 }

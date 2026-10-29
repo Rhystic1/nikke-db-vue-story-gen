@@ -1028,7 +1028,7 @@ import prompts from '@/utils/json/prompts.json'
 import { marked } from 'marked'
 import { sanitizeActions, parseFallback, parseAIResponse, isWholeWordPresent, formatChoiceAsUserTurn, filterEchoedUserChoiceDialogueInGameMode, stripChoicesWhenNotGameMode, ensureGameModeChoicesFallback, calculateYapDuration, replayMessage as replayMessageUtil, getHonorific, createTypewriterController, getEffectiveCharacterProfiles, logDebug, generateSystemPrompt as generateSystemPromptUtil, injectAnimReasonIntoJsonTemplate } from '@/utils/chatUtils'
 import { executeAiTurn } from '@/utils/chatRetryUtils'
-import { buildFirstTurnHonorificsReminder, injectFirstTurnReminder } from '@/utils/chatAiCaller'
+import { attachTurnContext, buildFirstTurnHonorificsReminder, injectFirstTurnReminder } from '@/utils/chatAiCaller'
 import { useStoryReminders } from '@/composables/useStoryReminders'
 import { usePresets } from '@/composables/usePresets'
 import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
@@ -2853,7 +2853,7 @@ const getFormattedAnimationsForContext = () => {
  * returned state mutations to the component refs.  Returns the context
  * suffix (story summary text) and the sliced history to send to the provider.
  */
-const runTumblingWindowSummarization = async (contextMsg: string, logTag: string): Promise<{ contextMsg: string; historyToSend: { role: string; content: string }[] }> => {
+const runTumblingWindowSummarization = async (logTag: string): Promise<{ summarySuffix: string; historyToSend: { role: string; content: string }[] }> => {
   const twResult = await handleTumblingWindowSummarization(
     {
       tokenUsage: tokenUsage.value,
@@ -2888,7 +2888,7 @@ const runTumblingWindowSummarization = async (contextMsg: string, logTag: string
   if (twResult.summaryJustCompacted !== undefined) summaryJustCompacted.value = twResult.summaryJustCompacted
 
   return {
-    contextMsg: contextMsg + twResult.contextSuffix,
+    summarySuffix: twResult.contextSuffix,
     historyToSend: twResult.historyToSend
   }
 }
@@ -2896,7 +2896,7 @@ const runTumblingWindowSummarization = async (contextMsg: string, logTag: string
 const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise<string> => {
   resetModelReasoning()
   const isFirstTurn = chatHistory.value.filter((m) => m.role === 'user').length <= 1
-  const systemPrompt = generateSystemPrompt(false)
+  const promptParts = generateSystemPrompt(false)
   let retryInstruction = isRetry ? prompts.reminders.retry : ''
 
   if (needsJsonReminder.value) {
@@ -2906,17 +2906,16 @@ const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise
     needsJsonReminder.value = false
   }
 
-  let contextMsg = `Current Character: ${market.live2d.current_id}.\n\nAvailable Animations:\n${getFormattedAnimationsForContext()}`
-
-  const { contextMsg: updatedContextMsg, historyToSend } = await runTumblingWindowSummarization(contextMsg, `[${logTag}]`)
-  contextMsg = updatedContextMsg
-
-  const reminders = getUserReminders()
-  const fullSystemPrompt = `${systemPrompt}\n\n${contextMsg}${retryInstruction}${reminders}`
+  // The summary changes only every N turns, so the suffix stays on the system prefix.
+  const { summarySuffix, historyToSend } = await runTumblingWindowSummarization(`[${logTag}]`)
+  const systemContent = `${promptParts.system}${summarySuffix}`
+  const animationContext = `Current Character: ${market.live2d.current_id}.\n\nAvailable Animations:\n${getFormattedAnimationsForContext()}`
+  const turnContext = `${promptParts.turnContext}\n\n${animationContext}${retryInstruction}${getUserReminders()}`
+  const dialogueHistory = historyToSend.filter((message) => message.role !== 'system')
 
   let messages: any[] = [
-    { role: 'system', content: fullSystemPrompt },
-    ...historyToSend.map((m) => ({ role: m.role, content: m.content }))
+    { role: 'system', content: systemContent },
+    ...dialogueHistory.map((m) => ({ role: m.role, content: m.content }))
   ]
 
   const firstTurnReminder = buildFirstTurnHonorificsReminder(
@@ -2928,6 +2927,7 @@ const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise
     prompts.reminders as Record<string, string>
   )
   messages = injectFirstTurnReminder(messages, firstTurnReminder)
+  messages = attachTurnContext(messages, turnContext)
   messages = attachCounselingScene(messages, counselingScene.value)
 
   return await runStoryProvider(apiProvider.value, 'story', currentRun(messages, 'story'))
