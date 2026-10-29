@@ -35,6 +35,7 @@ module.exports = {
                 'callOpenRouter',
                 'callPollinations',
                 'callLocal',
+                'callZai',
                 'fetchGeminiModels',
                 'fetchOpenRouterModels',
                 'fetchPollinationsModels'

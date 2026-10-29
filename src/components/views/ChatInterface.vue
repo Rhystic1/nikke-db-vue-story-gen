@@ -529,6 +529,11 @@
             <n-select v-model:value="apiProvider" :options="storyProviderOptions" />
           </n-form-item>
 
+          <n-form-item v-if="apiProvider === 'zai'" label="Z.AI key type">
+            <n-select v-model:value="zaiKeyPlan" :options="zaiKeyPlanOptions" />
+          </n-form-item>
+          <n-alert v-if="apiProvider === 'zai'" type="info" style="margin-bottom: 12px" title=""> Pay as you go and Coding plan keys call different endpoints. Choose the plan that issued the key. A mismatch is billed to the wrong product or the call fails. </n-alert>
+
           <n-form-item label="Local Endpoint URL" v-if="apiProvider === 'local'">
             <n-input v-model:value="localUrl" placeholder="http://localhost:5001/v1" />
           </n-form-item>
@@ -1036,7 +1041,7 @@ import { formatBackgroundFolderLoadFeedback, resolveAiBackgroundSelection } from
 import { ttsEnabled, ttsEndpoint, ttsProvider, gptSovitsEndpoint, gptSovitsBasePath, chatterboxEndpoint, ttsProviderOptions, playTTS } from '@/utils/ttsUtils'
 import { allowWebSearchFallback, usesPollinationsAutoFallback, webSearchFallbackHelpText, searchForCharacters, checkForSearchRequest as checkForSearchRequestUtil } from '@/utils/aiWebSearchUtils'
 import { enrichActionsWithAnimations, summarizeChunk as summarizeChunkImpl, compactSummary as compactSummaryImpl, getFilteredAnimations, tokenUsageOptions, formatAnimationsForContext, openRouterSpeedOptions, normalizeOpenRouterSpeed, resolveOpenRouterTierSupport, handleTumblingWindowSummarization, rotateOpenCodeGoSessionId, type OpenRouterSpeed, type OpenRouterTierSupport } from '@/utils/llmUtils'
-import { storyProviderOptions, parseStoryProviderId, listStoryModels, runStoryProvider, modelAfterRefresh, restoredModel, getReasoningEffortOptions, refetchesModelsWhenKeyChanges, providerUsesWiki, type StoryProviderId, type StoryTask, type StoryRun, type ModelChoice } from '@/utils/storyProviders'
+import { storyProviderOptions, parseStoryProviderId, listStoryModels, runStoryProvider, modelAfterRefresh, restoredModel, getReasoningEffortOptions, refetchesModelsWhenKeyChanges, providerUsesWiki, zaiKeyPlanOptions, parseZaiKeyPlan, type StoryProviderId, type StoryTask, type StoryRun, type ModelChoice, type ZaiKeyPlan } from '@/utils/storyProviders'
 import { captureSpineCanvasPlacement, restoreSpineCanvasPlacement } from '@/utils/spineUtils'
 import { isInteractiveOverlayTarget, isSpineCanvasAtPoint, getEventPoint } from '@/utils/overlayUtils'
 import { initChatLayout, createDragHandlers, createResizeHandlers, createViewportHandlers } from '@/utils/windowUtils'
@@ -1079,6 +1084,7 @@ const mode = ref('game')
 const tokenUsage = ref('medium')
 const reasoningEffort = ref(localStorage.getItem('nikke_reasoning_effort') || 'default')
 const openRouterSpeed = ref<OpenRouterSpeed>(normalizeOpenRouterSpeed(localStorage.getItem('nikke_openrouter_speed')))
+const zaiKeyPlan = ref<ZaiKeyPlan>(parseZaiKeyPlan(localStorage.getItem('nikke_zai_key_plan')))
 const openRouterTierSupport = ref<OpenRouterTierSupport | null>(null)
 const useCustomPlayerCharacter = ref(false)
 const selectedPlayerCharacterName = ref('')
@@ -1089,6 +1095,10 @@ watch(reasoningEffort, (val) => {
 
 watch(openRouterSpeed, (val) => {
   localStorage.setItem('nikke_openrouter_speed', val)
+})
+
+watch(zaiKeyPlan, (val) => {
+  localStorage.setItem('nikke_zai_key_plan', val)
 })
 
 watch(useCustomPlayerCharacter, (enabled) => {
@@ -1630,6 +1640,7 @@ const currentRun = (messages: { role: string; content: string }[], task: StoryTa
     signal: activeAbortController?.signal,
     enableWebSearch: task === 'native',
     openRouterSpeed: openRouterSpeed.value,
+    zaiKeyPlan: zaiKeyPlan.value,
     localUrl: localUrl.value,
     prompts
   }
@@ -2414,6 +2425,7 @@ const saveSession = () => {
     allowWebSearchFallback: allowWebSearchFallback.value,
     reasoningEffort: reasoningEffort.value,
     openRouterSpeed: openRouterSpeed.value,
+    zaiKeyPlan: zaiKeyPlan.value,
     autoCompactSummaries: autoCompactSummaries.value,
     autoCompactFrequency: autoCompactFrequency.value,
     counselingSessionId: counselingScene.value?.sessionId
@@ -2541,6 +2553,7 @@ const handleFileUpload = (event: Event) => {
             allowWebSearchFallback,
             reasoningEffort,
             openRouterSpeed,
+            zaiKeyPlan,
             autoCompactSummaries,
             autoCompactFrequency,
             apiProvider,

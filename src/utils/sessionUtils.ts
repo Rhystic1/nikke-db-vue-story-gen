@@ -1,6 +1,6 @@
 import { tokenUsageOptions } from '@/utils/llmUtils'
 import { normalizeOpenRouterSpeed, type OpenRouterSpeed } from '@/utils/providerConfigUtils'
-import { parseStoryProviderId, restoredModel, type ModelChoice, type StoryProviderId } from '@/utils/storyProviders'
+import { parseStoryProviderId, restoredModel, type ModelChoice, type StoryProviderId, type ZaiKeyPlan } from '@/utils/storyProviders'
 import { type StoryCharacterEntry } from '@/utils/storyCharacterUtils'
 
 export interface ChatMessage {
@@ -28,6 +28,7 @@ export interface SessionSettings {
   allowWebSearchFallback: boolean
   reasoningEffort: string
   openRouterSpeed: OpenRouterSpeed
+  zaiKeyPlan?: ZaiKeyPlan
   autoCompactSummaries: boolean
   autoCompactFrequency: number
 }
@@ -80,6 +81,7 @@ export interface BuildSessionExportParams {
   allowWebSearchFallback: boolean
   reasoningEffort: string
   openRouterSpeed: OpenRouterSpeed
+  zaiKeyPlan?: ZaiKeyPlan
   autoCompactSummaries: boolean
   autoCompactFrequency: number
   counselingSessionId?: string
@@ -156,6 +158,10 @@ export function buildSessionExportData(params: BuildSessionExportParams): Sessio
     }
   }
 
+  if (params.zaiKeyPlan === 'payg' || params.zaiKeyPlan === 'coding') {
+    sessionData.settings.zaiKeyPlan = params.zaiKeyPlan
+  }
+
   if (typeof params.counselingSessionId === 'string' && params.counselingSessionId !== '') {
     sessionData.counselingSessionId = params.counselingSessionId
   }
@@ -228,6 +234,7 @@ export interface ValidatedSessionSettings {
   allowWebSearchFallback?: boolean
   reasoningEffort?: string
   openRouterSpeed?: OpenRouterSpeed
+  zaiKeyPlan?: ZaiKeyPlan
   autoCompactSummaries?: boolean
   autoCompactFrequency?: number
   apiProvider?: StoryProviderId
@@ -250,6 +257,7 @@ export type ApplyValidatedSessionSettingsParams = {
   allowWebSearchFallback: { value: boolean }
   reasoningEffort: { value: string }
   openRouterSpeed: { value: OpenRouterSpeed }
+  zaiKeyPlan?: { value: ZaiKeyPlan }
   autoCompactSummaries: { value: boolean }
   autoCompactFrequency: { value: number }
   apiProvider: { value: StoryProviderId }
@@ -271,6 +279,7 @@ export function applyValidatedSessionSettings(params: ApplyValidatedSessionSetti
   if (validated.allowWebSearchFallback !== undefined) params.allowWebSearchFallback.value = validated.allowWebSearchFallback
   if (validated.reasoningEffort !== undefined) params.reasoningEffort.value = validated.reasoningEffort
   if (validated.openRouterSpeed !== undefined) params.openRouterSpeed.value = validated.openRouterSpeed
+  if (validated.zaiKeyPlan !== undefined && params.zaiKeyPlan) params.zaiKeyPlan.value = validated.zaiKeyPlan
   if (validated.autoCompactSummaries !== undefined) params.autoCompactSummaries.value = validated.autoCompactSummaries
   if (validated.autoCompactFrequency !== undefined) params.autoCompactFrequency.value = validated.autoCompactFrequency
   if (validated.apiProvider !== undefined) params.apiProvider.value = validated.apiProvider
@@ -311,6 +320,7 @@ export type SessionFileSettings = {
   allowWebSearchFallback?: boolean
   reasoningEffort?: string
   openRouterSpeed?: unknown
+  zaiKeyPlan?: unknown
   autoCompactSummaries?: boolean
   autoCompactFrequency?: number
   backgroundImagesEnabled?: boolean
@@ -358,6 +368,9 @@ export function validateSessionSettings(settings: SessionFileSettings | null | u
     result.reasoningEffort = settings.reasoningEffort
   }
   result.openRouterSpeed = normalizeOpenRouterSpeed(settings.openRouterSpeed)
+  if (settings.zaiKeyPlan === 'payg' || settings.zaiKeyPlan === 'coding') {
+    result.zaiKeyPlan = settings.zaiKeyPlan
+  }
   if (typeof settings.autoCompactSummaries === 'boolean') {
     result.autoCompactSummaries = settings.autoCompactSummaries
   }
