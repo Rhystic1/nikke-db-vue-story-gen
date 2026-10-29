@@ -101,9 +101,10 @@ export const buildZaiChatRequestBody = (opts: {
   reasoningExclude?: boolean
   includeAnimReason?: boolean
 }) => {
-  const requestBody = buildOpenAiCompatibleRequestBody(opts)
-  // The shared builder adds an OpenRouter reasoning object. Z.AI rejects that field.
-  delete requestBody.reasoning
+  const requestBody = buildOpenAiCompatibleRequestBody({
+    ...opts,
+    reasoningEffort: undefined
+  })
 
   const effort = opts.reasoningEffort
   if (!effort || effort === 'default') {
