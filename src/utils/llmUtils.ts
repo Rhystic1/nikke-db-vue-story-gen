@@ -89,6 +89,46 @@ export const buildOpenCodeGoChatRequestBody = (opts: {
   return requestBody
 }
 
+const ZAI_GLM_5_3_MODELS = new Set(['glm-5.3', 'glm-5.3-flash', 'glm-5.3-flashx'])
+
+export const buildZaiChatRequestBody = (opts: {
+  messages: any[]
+  maxTokens: number
+  model?: string
+  modeIsGame?: boolean
+  reasoningEffort?: string
+  includeJsonSchema?: boolean
+  reasoningExclude?: boolean
+  includeAnimReason?: boolean
+}) => {
+  const requestBody = buildOpenAiCompatibleRequestBody(opts)
+  // The shared builder adds an OpenRouter reasoning object. Z.AI rejects that field.
+  delete requestBody.reasoning
+
+  const effort = opts.reasoningEffort
+  if (!effort || effort === 'default') {
+
+    return requestBody
+  }
+
+  if (opts.model && ZAI_GLM_5_3_MODELS.has(opts.model)) {
+    requestBody.reasoning_effort = toGlm53ReasoningEffort(effort)
+
+    return requestBody
+  }
+
+  if (effort === 'none') {
+    requestBody.thinking = { type: 'disabled' }
+
+    return requestBody
+  }
+
+  requestBody.thinking = { type: 'enabled' }
+  requestBody.reasoning_effort = effort
+
+  return requestBody
+}
+
 const getOpenAiCompatibleHeaders = (apiKey?: string) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
@@ -923,6 +963,49 @@ export const callLocal = async (
   const data = await response.json()
 
   return takeOpenAiMessageContent(data, includeReasoning)
+}
+
+export const callZai = async (
+  messages: any[],
+  opts: {
+    url: string
+    model?: string
+    apiKey?: string
+    maxTokens?: number
+    modeIsGame?: boolean
+    reasoningEffort?: string
+    includeJsonSchema?: boolean
+    includeAnimReason?: boolean
+    includeReasoning?: boolean
+    signal?: AbortSignal
+  }
+) => {
+  const { model, maxTokens = 16384, apiKey, url, modeIsGame, reasoningEffort, includeJsonSchema = false, includeAnimReason = false, includeReasoning = false, signal } = opts
+  const trimmedKey = apiKey?.trim()
+  const requestBody = buildZaiChatRequestBody({
+    messages,
+    maxTokens,
+    model,
+    modeIsGame,
+    reasoningEffort,
+    includeJsonSchema,
+    includeAnimReason
+  })
+  const response = await sendOpenAiCompatibleRequest(url, {
+    requestBody,
+    apiKey: trimmedKey ? trimmedKey : undefined,
+    signal
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+
+    return { ok: false as const, status: response.status, statusText: response.statusText, errorData }
+  }
+
+  const data = await response.json()
+
+  return { ok: true as const, text: takeOpenAiMessageContent(data, includeReasoning) }
 }
 
 export const callOpenCodeGoSummarization = async (messages: any[], opts: { model: string; apiKey: string; maxTokens?: number; reasoningEffort?: string; enableContextCaching?: boolean; signal?: AbortSignal }) => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { listStoryModels, modelAfterRefresh, parseStoryProviderId, runStoryProvider, storyProviderOptions } from '@/utils/storyProviders'
+import { listStoryModels, modelAfterRefresh, parseStoryProviderId, parseZaiKeyPlan, runStoryProvider, storyProviderOptions } from '@/utils/storyProviders'
 import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport } from '@/utils/providerConfigUtils'
 
 const catalog = {
@@ -15,6 +15,7 @@ const catalog = {
 
 type RecordedRequest = {
   url: string
+  method?: string
   body: any
   headers: Record<string, string>
 }
@@ -60,6 +61,7 @@ const stubFetch = (impl: (request: RecordedRequest) => Response | Promise<Respon
     const bodyText = typeof init?.body === 'string' ? init.body : undefined
     const request = {
       url: String(url),
+      method: init?.method,
       body: bodyText ? JSON.parse(bodyText) : undefined,
       headers: headerRecord(init?.headers)
     }
@@ -76,6 +78,7 @@ describe('paid OpenCode catalog', () => {
     vi.restoreAllMocks()
     sessionStorage.removeItem('nikke_opencode_no_json_schema')
     sessionStorage.removeItem('nikke_opencode_no_reasoning')
+    sessionStorage.removeItem('nikke_zai_no_json_schema')
     modelsWithoutJsonSupport.value = new Set()
     modelsWithoutReasoningSupport.value = new Set()
   })
@@ -126,6 +129,7 @@ describe('paid OpenCode catalog', () => {
       'opencode',
       'openrouter',
       'pollinations',
+      'zai',
       'local'
     ])
     expect(storyProviderOptions.find((option) => option.value === 'opencode')?.label).toBe('OpenCode')
@@ -238,5 +242,183 @@ describe('paid OpenCode catalog', () => {
     expect(text).toBe('go')
     expect(requests[0].url).toContain('/zen/go/v1/chat/completions')
     expect(requests[0].url).not.toContain('/inference/openai/')
+  })
+})
+
+const zaiModels = [
+  'glm-5.3',
+  'glm-5.3-flash',
+  'glm-5.3-flashx',
+  'glm-5.2',
+  'glm-5.1',
+  'glm-5',
+  'glm-4.7',
+  'glm-4.7-flash',
+  'glm-4.7-flashx',
+  'glm-4.6',
+  'glm-4.5',
+  'glm-4.5-air',
+  'glm-4.5-x',
+  'glm-4.5-airx',
+  'glm-4.5-flash',
+  'glm-4-32b-0414-128k'
+]
+
+describe('Z.AI provider', () => {
+  afterEach(() => {
+    requests = []
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    sessionStorage.removeItem('nikke_zai_no_json_schema')
+    modelsWithoutJsonSupport.value = new Set()
+    modelsWithoutReasoningSupport.value = new Set()
+  })
+
+  it('inserts zai before local in the provider list', () => {
+    expect(storyProviderOptions.map((option) => option.value)).toEqual([
+      'gemini',
+      'opencode-go',
+      'opencode',
+      'openrouter',
+      'pollinations',
+      'zai',
+      'local'
+    ])
+    expect(storyProviderOptions.find((option) => option.value === 'zai')?.label).toBe('Z.AI')
+  })
+
+  it('lists the static catalog without fetching', async () => {
+    stubFetch(() => jsonResponse(200, { data: [{ id: 'other' }] }))
+
+    const listed = await listStoryModels('zai', undefined)
+
+    expect(listed).toEqual({
+      ok: true,
+      choices: zaiModels.map((modelId) => ({ label: modelId, value: modelId }))
+    })
+    expect(requests).toEqual([])
+  })
+
+  it('parses the key plan', () => {
+    expect(parseZaiKeyPlan('coding')).toBe('coding')
+    expect(parseZaiKeyPlan('payg')).toBe('payg')
+    expect(parseZaiKeyPlan('nope')).toBe('payg')
+    expect(parseZaiKeyPlan(undefined)).toBe('payg')
+  })
+
+  it('posts pay as you go when the run omits the key plan', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    const text = await runStoryProvider('zai', 'story', storyRun('glm-4.7', 'default'))
+
+    expect(text).toBe('ok')
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('POST')
+    expect(requests[0].url).toBe('https://api.z.ai/api/paas/v4/chat/completions')
+    expect(requests[0].headers.Authorization).toBe('Bearer test-key')
+    expect(requests[0].headers['Content-Type']).toBe('application/json')
+    expect(requests[0].body.response_format.json_schema.name).toBe('StoryResponse')
+  })
+
+  it('posts the coding plan chat url', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('zai', 'story', { ...storyRun('glm-4.7', 'default'), zaiKeyPlan: 'coding' })
+
+    expect(requests[0].url).toBe('https://api.z.ai/api/coding/paas/v4/chat/completions')
+    expect(requests[0].headers.Authorization).toBe('Bearer test-key')
+  })
+
+  it('sends reasoning_effort for glm-5.3 and drops the reasoning object', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('zai', 'story', storyRun('glm-5.3', 'high'))
+
+    expect(requests[0].body.reasoning_effort).toBe('high')
+    expect(requests[0].body.reasoning).toBeUndefined()
+    expect(requests[0].body.thinking).toBeUndefined()
+  })
+
+  it('sends low effort for glm-5.3 when reasoning is none', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('zai', 'story', storyRun('glm-5.3', 'none'))
+    await runStoryProvider('zai', 'story', storyRun('glm-5.3-flashx', 'none'))
+
+    expect(requests[0].body.reasoning_effort).toBe('low')
+    expect(requests[0].body.thinking).toBeUndefined()
+    expect(requests[0].body.reasoning).toBeUndefined()
+    expect(requests[1].body.reasoning_effort).toBe('low')
+    expect(requests[1].body.thinking).toBeUndefined()
+  })
+
+  it('disables thinking for glm-4.7 when reasoning is none', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('zai', 'story', storyRun('glm-4.7', 'none'))
+
+    expect(requests[0].body.thinking).toEqual({ type: 'disabled' })
+    expect(requests[0].body.reasoning).toBeUndefined()
+    expect(requests[0].body.reasoning_effort).toBeUndefined()
+  })
+
+  it('omits thinking and reasoning_effort when reasoning is default', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('zai', 'story', storyRun('glm-4.7', 'default'))
+    await runStoryProvider('zai', 'story', storyRun('glm-5.3', 'default'))
+
+    expect(requests[0].body.thinking).toBeUndefined()
+    expect(requests[0].body.reasoning_effort).toBeUndefined()
+    expect(requests[1].body.thinking).toBeUndefined()
+    expect(requests[1].body.reasoning_effort).toBeUndefined()
+  })
+
+  it('omits response_format for summarize', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'sum' } }] }))
+
+    const text = await runStoryProvider('zai', 'summarize', storyRun('glm-4.7', 'low'))
+
+    expect(text).toBe('sum')
+    expect(requests[0].body.response_format).toBeUndefined()
+    expect(requests[0].body.thinking).toEqual({ type: 'enabled' })
+    expect(requests[0].body.reasoning_effort).toBe('low')
+  })
+
+  it('retries a story schema rejection once and remembers the model', async () => {
+    stubFetch((request) => {
+      if (request.body?.response_format) {
+
+        return jsonResponse(400, { error: { message: 'response_format is not supported' } })
+      }
+
+      return jsonResponse(200, { choices: [{ message: { content: 'plain' } }] })
+    })
+
+    const text = await runStoryProvider('zai', 'story', storyRun('glm-4.7', 'default'))
+
+    expect(text).toBe('plain')
+    expect(requests).toHaveLength(2)
+    expect(requests[1].body.response_format).toBeUndefined()
+    expect(JSON.parse(sessionStorage.getItem('nikke_zai_no_json_schema') || '[]')).toContain('glm-4.7')
+    expect(modelsWithoutJsonSupport.value.size).toBe(0)
+
+    requests = []
+    await runStoryProvider('zai', 'story', storyRun('glm-4.7', 'default'))
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0].body.response_format).toBeUndefined()
+  })
+
+  it('throws AIError once when the failure is not a schema rejection', async () => {
+    stubFetch(() => jsonResponse(400, { error: { message: 'bad request' } }))
+
+    await expect(runStoryProvider('zai', 'story', storyRun('glm-4.7', 'default'))).rejects.toThrow('400: bad request')
+    expect(requests).toHaveLength(1)
+    expect(sessionStorage.getItem('nikke_zai_no_json_schema')).toBeNull()
+  })
+
+  it('rejects native search', async () => {
+    await expect(runStoryProvider('zai', 'native', storyRun('glm-5.3', 'default'))).rejects.toThrow('Native search is not available for this provider')
   })
 })

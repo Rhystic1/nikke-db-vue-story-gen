@@ -1,6 +1,6 @@
 import type { OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { buildOpenCodeGoHeaders } from '@/utils/providerConfigUtils'
-import { buildOpenCodeGoChatRequestBody, callLocal, callLocalSummarization, callOpenCodeGo, callOpenCodeGoSummarization, callOpenRouter, callOpenRouterSummarization, fetchOpenCodeGoModels, fetchOpenRouterModels, fetchPollinationsModels } from '@/utils/llmUtils'
+import { buildOpenCodeGoChatRequestBody, callLocal, callLocalSummarization, callOpenCodeGo, callOpenCodeGoSummarization, callOpenRouter, callOpenRouterSummarization, callZai, fetchOpenCodeGoModels, fetchOpenRouterModels, fetchPollinationsModels } from '@/utils/llmUtils'
 import { GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, callGemini, callGeminiSummarization, fetchGeminiModels } from '@/utils/geminiUtils'
 import { callPollinations, callPollinationsSummarization } from '@/utils/pollinationsUtils'
 import { takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
@@ -19,6 +19,8 @@ export type ModelChoice = {
 
 export type ModelListResult = { ok: true; choices: ModelChoice[] } | { ok: false }
 
+export type ZaiKeyPlan = 'payg' | 'coding'
+
 export type StoryRun = {
   messages: ChatMessage[]
   apiKey: string
@@ -33,6 +35,7 @@ export type StoryRun = {
   signal?: AbortSignal
   enableWebSearch?: boolean
   openRouterSpeed?: OpenRouterSpeed
+  zaiKeyPlan?: ZaiKeyPlan
   localUrl?: string
   prompts?: any
 }
@@ -144,6 +147,19 @@ const pollinationsRow = {
   run: runPollinations
 } satisfies ProviderPolicy & { id: string }
 
+const zaiRow = {
+  id: 'zai' as const,
+  label: 'Z.AI',
+  reasoning: 'chat',
+  refetchOnKeyChange: false,
+  emptyCatalog: 'quiet',
+  fallback: 'first',
+  search: 'always-wiki',
+  wikiHelp: 'same-as-wiki-mode',
+  listModels: listZaiModels,
+  run: runZai
+} satisfies ProviderPolicy & { id: string }
+
 const localRow = {
   id: 'local' as const,
   label: 'Local (OpenAI-compatible API)',
@@ -157,7 +173,40 @@ const localRow = {
   run: runLocal
 } satisfies ProviderPolicy & { id: string }
 
-const storyProviderList = [geminiRow, openCodeGoRow, openCodeRow, openRouterRow, pollinationsRow, localRow] as const
+export const zaiKeyPlanOptions: { label: string; value: ZaiKeyPlan }[] = [
+  { label: 'Pay as you go', value: 'payg' },
+  { label: 'Coding plan', value: 'coding' }
+]
+
+export function parseZaiKeyPlan(raw: unknown): ZaiKeyPlan {
+  return raw === 'coding' ? 'coding' : 'payg'
+}
+
+const ZAI_CHAT_URLS: Record<ZaiKeyPlan, string> = {
+  payg: 'https://api.z.ai/api/paas/v4/chat/completions',
+  coding: 'https://api.z.ai/api/coding/paas/v4/chat/completions'
+}
+
+const ZAI_MODEL_IDS = [
+  'glm-5.3',
+  'glm-5.3-flash',
+  'glm-5.3-flashx',
+  'glm-5.2',
+  'glm-5.1',
+  'glm-5',
+  'glm-4.7',
+  'glm-4.7-flash',
+  'glm-4.7-flashx',
+  'glm-4.6',
+  'glm-4.5',
+  'glm-4.5-air',
+  'glm-4.5-x',
+  'glm-4.5-airx',
+  'glm-4.5-flash',
+  'glm-4-32b-0414-128k'
+] as const
+
+const storyProviderList = [geminiRow, openCodeGoRow, openCodeRow, openRouterRow, pollinationsRow, zaiRow, localRow] as const
 
 export type StoryProviderId = (typeof storyProviderList)[number]['id']
 
@@ -400,6 +449,7 @@ async function listPaidModels(apiKey: string | undefined): Promise<ModelListResu
 
 const PAID_NO_JSON_SCHEMA_KEY = 'nikke_opencode_no_json_schema'
 const PAID_NO_REASONING_KEY = 'nikke_opencode_no_reasoning'
+const ZAI_NO_JSON_SCHEMA_KEY = 'nikke_zai_no_json_schema'
 
 function readPaidBlockList(storageKey: string): Set<string> {
   try {
@@ -529,6 +579,48 @@ async function runPaid(task: StoryTask, req: StoryRun): Promise<string> {
   }
 
   return paidChat(req, false)
+}
+
+async function listZaiModels(): Promise<ModelListResult> {
+  const choices = ZAI_MODEL_IDS.map((modelId) => ({ label: modelId, value: modelId }))
+
+  return { ok: true, choices }
+}
+
+async function runZai(task: StoryTask, req: StoryRun): Promise<string> {
+  if (task === 'native') {
+    throw new Error('Native search is not available for this provider')
+  }
+
+  const modelId = req.model ?? ''
+  const includeReasoning = task === 'summarize' || task === 'compact' ? false : Boolean(req.includeReasoning)
+  const useSchema = task === 'story' && !readPaidBlockList(ZAI_NO_JSON_SCHEMA_KEY).has(modelId)
+  const send = (schema: boolean) => {
+    return callZai(req.messages, {
+      url: ZAI_CHAT_URLS[parseZaiKeyPlan(req.zaiKeyPlan)],
+      model: req.model,
+      apiKey: req.apiKey,
+      maxTokens: req.maxTokens,
+      modeIsGame: req.modeIsGame,
+      reasoningEffort: req.reasoningEffort,
+      includeJsonSchema: schema,
+      includeAnimReason: req.includeAnimReason,
+      includeReasoning,
+      signal: req.signal
+    })
+  }
+
+  let result = await send(useSchema)
+  if (!result.ok && useSchema && result.status === 400 && isPaidSchemaError(result.errorData)) {
+    rememberPaidBlock(ZAI_NO_JSON_SCHEMA_KEY, modelId)
+    result = await send(false)
+  }
+
+  if (!result.ok) {
+    throw new AIError(result.errorData?.error?.code ?? result.status, result.errorData?.error?.message ?? result.statusText ?? 'Unknown error')
+  }
+
+  return result.text
 }
 
 async function listGoModels(apiKey: string | undefined): Promise<ModelListResult> {
