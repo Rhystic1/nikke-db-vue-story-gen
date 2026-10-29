@@ -1,3 +1,67 @@
+import { logDebug } from '@/utils/errorUtils'
+
+export interface PromptCacheUsage {
+  promptTokens: number
+  cachedTokens: number
+  cacheWriteTokens: number
+}
+
+const finiteCount = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
+
+export function parsePromptCacheUsage(data: any): PromptCacheUsage | null {
+  const usage = data?.usage
+  const promptTokens = usage?.prompt_tokens
+
+  if (typeof promptTokens === 'number' && Number.isFinite(promptTokens)) {
+    const details = usage.prompt_tokens_details
+
+    return {
+      promptTokens,
+      cachedTokens: finiteCount(details?.cached_tokens),
+      cacheWriteTokens: finiteCount(details?.cache_write_tokens)
+    }
+  }
+
+  const inputTokens = usage?.input_tokens
+
+  if (typeof inputTokens === 'number' && Number.isFinite(inputTokens)) {
+    const cachedTokens = finiteCount(usage.cache_read_input_tokens)
+    const cacheWriteTokens = finiteCount(usage.cache_creation_input_tokens)
+
+    return {
+      promptTokens: inputTokens + cachedTokens + cacheWriteTokens,
+      cachedTokens,
+      cacheWriteTokens
+    }
+  }
+
+  const geminiPromptTokens = data?.usageMetadata?.promptTokenCount
+
+  if (typeof geminiPromptTokens === 'number' && Number.isFinite(geminiPromptTokens)) {
+
+    return {
+      promptTokens: geminiPromptTokens,
+      cachedTokens: finiteCount(data.usageMetadata.cachedContentTokenCount),
+      cacheWriteTokens: 0
+    }
+  }
+
+  return null
+}
+
+export function logPromptCacheUsage(data: any): void {
+  const usage = parsePromptCacheUsage(data)
+
+  if (!usage) {
+
+    return
+  }
+
+  const cachedPercent = usage.promptTokens > 0 ? Math.round((usage.cachedTokens / usage.promptTokens) * 100) : 0
+
+  logDebug(`[PromptCache] prompt=${usage.promptTokens} cached=${usage.cachedTokens} (${cachedPercent}%) written=${usage.cacheWriteTokens}`)
+}
+
 let pendingReasoning: string | undefined
 
 export function resetModelReasoning() {
@@ -52,11 +116,14 @@ export function captureReasoningFromOpenAiData(data: any, includeReasoning: bool
 
 export function takeOpenAiMessageContent(data: any, includeReasoning = false): string {
   captureReasoningFromOpenAiData(data, includeReasoning)
+  logPromptCacheUsage(data)
 
   return data?.choices?.[0]?.message?.content
 }
 
 export function extractAnthropicTextAndReasoning(data: any): { content: string; reasoning?: string } {
+  logPromptCacheUsage(data)
+
   const blocks = Array.isArray(data?.content) ? data.content : []
   const thinking = blocks
     .filter((block: any) => block.type === 'thinking')
