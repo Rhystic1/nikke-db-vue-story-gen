@@ -532,6 +532,7 @@
           <n-form-item v-if="apiProvider === 'zai'" label="Z.AI key type">
             <n-select v-model:value="zaiKeyPlan" :options="zaiKeyPlanOptions" />
           </n-form-item>
+          <n-alert v-if="apiProvider === 'zai'" type="info" style="margin-bottom: 12px" title=""> Pay as you go and Coding plan keys call different endpoints. Choose the plan that issued the key. A mismatch is billed to the wrong product or the call fails. </n-alert>
 
           <n-form-item label="Local Endpoint URL" v-if="apiProvider === 'local'">
             <n-input v-model:value="localUrl" placeholder="http://localhost:5001/v1" />
