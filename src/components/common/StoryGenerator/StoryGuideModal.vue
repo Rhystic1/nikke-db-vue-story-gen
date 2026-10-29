@@ -20,7 +20,7 @@
         <div class="guide-section">
           <h4>🔑 API Setup</h4>
           <ul>
-            <li><strong>Providers:</strong> Supports <strong>Gemini</strong>, <strong>OpenCode Go</strong>, <strong>OpenRouter</strong>, <strong>Pollinations</strong>, and <strong>Local</strong> (OpenAI-compatible).</li>
+            <li><strong>Providers:</strong> Supports <strong>Gemini</strong>, <strong>OpenCode Go</strong>, <strong>OpenCode</strong>, <strong>OpenRouter</strong>, <strong>Pollinations</strong>, and <strong>Local</strong> (OpenAI-compatible).</li>
             <li><strong>Privacy:</strong> Your API keys are stored <strong>locally</strong> in your browser and never sent to Nikke-DB.</li>
             <li><strong>Cost:</strong> Be mindful of your provider's usage. You are solely responsible for all costs.</li>
           </ul>
