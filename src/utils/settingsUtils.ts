@@ -1,10 +1,5 @@
-// Settings utility functions
-// Extracted from ChatInterface.vue — reads localStorage and returns validated plain values.
-
-import { tokenUsageOptions, providerOptions } from '@/utils/llmUtils'
-import { GEMINI_DEFAULT_MODEL } from '@/utils/geminiUtils'
-
-// --- Shared localStorage keys ---
+import { tokenUsageOptions } from '@/utils/llmUtils'
+import { parseStoryProviderId, type StoryProviderId } from '@/utils/storyProviders'
 
 /** localStorage key for the mobile-optimizations toggle. */
 export const MOBILE_OPTIMIZATIONS_STORAGE_KEY = 'nikke_story_gen_mobile_optimizations'
@@ -34,7 +29,7 @@ export interface StoredSettings {
   autoCompactSummaries?: boolean
   autoCompactFrequency?: number
   enableAnimationReplay?: boolean
-  apiProvider?: string
+  apiProvider?: StoryProviderId
   model?: string
   playerCharacterUseCustom?: boolean
   playerCharacterName?: string
@@ -140,10 +135,10 @@ export function loadSettingsFromStorage(): StoredSettings {
     result.playerCharacterName = savedPlayerCharacterName
   }
 
-  // Provider + model (raw values — caller must validate model against fetched lists)
   const savedProvider = localStorage.getItem('nikke_api_provider')
-  if (savedProvider && providerOptions.some((p) => p.value === savedProvider)) {
-    result.apiProvider = savedProvider
+  const providerId = savedProvider ? parseStoryProviderId(savedProvider) : undefined
+  if (providerId) {
+    result.apiProvider = providerId
   }
 
   const savedModel = localStorage.getItem('nikke_model')
@@ -169,23 +164,4 @@ export function loadSettingsFromStorage(): StoredSettings {
   }
 
   return result
-}
-
-/**
- * Validates a saved model ID against a list of valid models for the provider.
- * Returns the valid model or a provider-specific default.
- */
-export function validateSavedModel(savedProvider: string, savedModel: string | undefined, validModels: string[], firstDynamicModel?: string): { model: string | undefined; warning?: string } {
-  if (savedModel && validModels.includes(savedModel)) {
-    return { model: savedModel }
-  }
-
-  // Fallback to default
-  let fallback: string | undefined
-  if ((savedProvider === 'openrouter' || savedProvider === 'opencode-go' || savedProvider === 'gemini') && firstDynamicModel) fallback = firstDynamicModel
-  else if (savedProvider === 'gemini') fallback = GEMINI_DEFAULT_MODEL
-
-  const warning = savedModel ? `Saved model '${savedModel}' is invalid or unavailable. Using default.` : undefined
-
-  return { model: fallback, warning }
 }

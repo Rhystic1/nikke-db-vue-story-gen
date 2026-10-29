@@ -4,12 +4,6 @@ import { logDebug } from '@/utils/chatUtils'
 import { getRosterIdPairs, type StoryCharacterEntry, type CharacterCatalog } from '@/utils/storyCharacterUtils'
 import { applyOverridesForContext } from '@/utils/animationOverrideUtils'
 import l2d from '@/utils/json/l2d.json'
-import { callGemini } from '@/utils/geminiUtils'
-import { callOpenCodeGo } from '@/utils/llmUtils'
-import { callOpenRouter } from '@/utils/llmUtils'
-import type { OpenRouterSpeed } from '@/utils/providerConfigUtils'
-import { callPollinations } from '@/utils/pollinationsUtils'
-import { callLocal } from '@/utils/llmUtils'
 
 export const getFilteredAnimations = (animations?: string[]) => {
   return (animations || []).filter((a) => a !== 'talk' && a !== 'talk_start' && a !== 'talk_end' && a !== 'expression_0' && a !== 'expression_0_alt' && a !== 'action')
@@ -25,25 +19,19 @@ const hasMeaningfulAnimation = (anim: any): boolean => {
 export const enrichActionsWithAnimations = async (
   actions: any[],
   opts: {
-    apiProvider: string
-    apiKey: string
-    model?: string
     currentCharacterId: string
     filteredAnimations: string[]
     animationEnrichmentPrompt: string
     preserveExistingAnimations?: boolean
-    localUrl?: string
     rawResponseText?: string
     characterAnimations?: Record<string, string[]>
-    signal?: AbortSignal
-    openRouterSpeed?: OpenRouterSpeed
+    complete: (messages: { role: string; content: string }[]) => Promise<string>
   }
 ): Promise<any[]> => {
   logDebug('Enriching actions with animations...')
 
-  const { apiProvider, apiKey, model, currentCharacterId, filteredAnimations, animationEnrichmentPrompt, preserveExistingAnimations = true, localUrl, rawResponseText, characterAnimations, signal, openRouterSpeed } = opts
+  const { currentCharacterId, filteredAnimations, animationEnrichmentPrompt, preserveExistingAnimations = true, rawResponseText, characterAnimations, complete } = opts
 
-  // Get unique characters present in the scene
   const charactersInScene = Array.from(new Set(actions.map((a) => a.character).filter((c) => c && c !== 'none')))
 
   // Build formatted animation list for ALL characters in the scene
@@ -92,48 +80,7 @@ export const enrichActionsWithAnimations = async (
   let enrichedActions: any[] = []
 
   try {
-    let response: string
-
-    if (apiProvider === 'gemini') {
-      response = await callGemini(messages, { model: model!, apiKey, allowWebSearchFallback: false, signal })
-    } else if (apiProvider === 'opencode-go') {
-      response = await callOpenCodeGo(messages, {
-        model: model!,
-        apiKey,
-        modeIsGame: false,
-        signal
-      })
-    } else if (apiProvider === 'openrouter') {
-      response = await callOpenRouter(messages, {
-        model: model!,
-        apiKey,
-        enableContextCaching: false,
-        allowWebSearchFallback: false,
-        modeIsGame: false,
-        prompts: {} as any, // Not needed for this call
-        signal,
-        openRouterSpeed
-      })
-    } else if (apiProvider === 'pollinations') {
-      response = await callPollinations(messages, {
-        model: model!,
-        apiKey,
-        allowWebSearchFallback: false,
-        modeIsGame: false,
-        signal
-      })
-    } else if (apiProvider === 'local' && localUrl) {
-      response = await callLocal(messages, {
-        model,
-        apiKey,
-        localUrl,
-        modeIsGame: false,
-        signal
-      })
-    } else {
-      console.warn('[enrichActionsWithAnimations] No valid API provider, returning original actions')
-      return actions
-    }
+    const response = await complete(messages)
 
     logDebug('[enrichActionsWithAnimations] API response:', response?.substring(0, 200))
 
