@@ -69,7 +69,7 @@ const toGlm53ReasoningEffort = (effort: string) => {
   }
 }
 
-const buildOpenCodeGoChatRequestBody = (opts: {
+export const buildOpenCodeGoChatRequestBody = (opts: {
   messages: any[]
   maxTokens: number
   model?: string
