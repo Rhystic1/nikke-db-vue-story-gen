@@ -41,6 +41,8 @@ export function injectFirstTurnReminder(messages: any[], reminder: string): any[
 }
 
 const TURN_CONTEXT_HEADER = '[SCENE CONTEXT FOR THIS TURN — provided by the system, not written by the player]\n'
+const STORY_SUMMARY_HEADER = '[PREVIOUS STORY SUMMARY - provided by the system, not written by the player]\n'
+const STORY_SUMMARY_END = '\n[END OF SUMMARY]'
 
 export function attachTurnContext<T extends { role: string; content: string }>(messages: readonly T[], context: string): T[] {
   if (!context) {
@@ -58,6 +60,29 @@ export function attachTurnContext<T extends { role: string; content: string }>(m
   }
 
   result.push({ role: 'user', content: block } as T)
+
+  return result
+}
+
+export function attachStorySummary<T extends { role: string; content: string }>(messages: readonly T[], summary: string): T[] {
+  if (!summary) {
+
+    return messages.slice()
+  }
+
+  const block = `${STORY_SUMMARY_HEADER}${summary}${STORY_SUMMARY_END}`
+  const result = messages.map((message) => ({ ...message }))
+  const firstSpoken = result.findIndex((message) => message.role !== 'system')
+  const target = firstSpoken === -1 ? undefined : result[firstSpoken]
+
+  if (target && target.role === 'user') {
+    result[firstSpoken] = { ...target, content: `${block}\n\n${target.content}` }
+
+    return result
+  }
+
+  const insertAt = firstSpoken === -1 ? result.length : firstSpoken
+  result.splice(insertAt, 0, { role: 'user', content: block } as T)
 
   return result
 }

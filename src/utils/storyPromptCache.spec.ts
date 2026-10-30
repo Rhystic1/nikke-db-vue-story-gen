@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { attachTurnContext } from '@/utils/chatAiCaller'
+import { fingerprintText } from '@/utils/aiReasoningUtils'
+import { attachStorySummary, attachTurnContext } from '@/utils/chatAiCaller'
 import { generateSystemPrompt, getHonorific, type SystemPromptParams } from '@/utils/chatUtils'
+import { handleTumblingWindowSummarization } from '@/utils/tumblingWindowUtils'
 import characterProfiles from '@/utils/json/characterProfiles.json'
 import prompts from '@/utils/json/prompts.json'
 import type { CharacterCatalog } from '@/utils/storyCharacterUtils'
@@ -160,5 +162,178 @@ describe('attachTurnContext', () => {
       role: 'user',
       content: `${sceneHeader}\nscene`
     })
+  })
+})
+
+const summaryHeader = '[PREVIOUS STORY SUMMARY - provided by the system, not written by the player]'
+const summaryEnd = '[END OF SUMMARY]'
+
+const summaryBlock = (summary: string) => `${summaryHeader}\n${summary}\n${summaryEnd}`
+
+const assembleStoryRequest = (
+  history: { role: string; content: string }[],
+  summary: string,
+  overrides: Partial<SystemPromptParams> = {}
+) => {
+  const currentUserPrompt = [...history].reverse().find((message) => message.role === 'user')?.content ?? ''
+  const parts = promptFor({
+    effectiveCharacterProfiles: { Rapi: characterProfiles.Rapi },
+    currentLive2dId: 'c010',
+    currentUserPrompt,
+    ...overrides,
+    chatHistory: history
+  })
+  const dialogueHistory = history.filter((message) => message.role !== 'system')
+  let messages = [
+    { role: 'system', content: parts.system },
+    ...dialogueHistory.map((message) => ({ role: message.role, content: message.content }))
+  ]
+  messages = attachTurnContext(messages, parts.turnContext)
+  messages = attachStorySummary(messages, summary)
+
+  return messages
+}
+
+describe('attachStorySummary', () => {
+  it('prepends the summary to the first user message and leaves the input untouched', () => {
+    const input = [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'hi' },
+      { role: 'user', content: 'again' }
+    ]
+    const attached = attachStorySummary(input, 'The wall held.')
+
+    expect(input.map((message) => message.content)).toEqual(['sys', 'hello', 'hi', 'again'])
+    expect(attached[0]).toEqual({ role: 'system', content: 'sys' })
+    expect(attached[1]).toEqual({
+      role: 'user',
+      content: `${summaryBlock('The wall held.')}\n\nhello`
+    })
+    expect(attached[2]).toEqual({ role: 'assistant', content: 'hi' })
+    expect(attached[3]).toEqual({ role: 'user', content: 'again' })
+  })
+
+  it('inserts a user message when the first non-system message is an assistant message', () => {
+    const input = [
+      { role: 'system', content: 'sys-a' },
+      { role: 'system', content: 'sys-b' },
+      { role: 'assistant', content: 'done' }
+    ]
+    const attached = attachStorySummary(input, 'Earlier.')
+
+    expect(input).toHaveLength(3)
+    expect(input[2].content).toBe('done')
+    expect(attached).toEqual([
+      { role: 'system', content: 'sys-a' },
+      { role: 'system', content: 'sys-b' },
+      { role: 'user', content: summaryBlock('Earlier.') },
+      { role: 'assistant', content: 'done' }
+    ])
+  })
+
+  it('returns a copy unchanged when the summary is empty', () => {
+    const input = [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'hello' }
+    ]
+    const attached = attachStorySummary(input, '')
+
+    expect(attached).not.toBe(input)
+    expect(attached).toEqual(input)
+  })
+
+  it('inserts a user message after the system messages when the dialogue is empty', () => {
+    const input = [{ role: 'system', content: 'sys' }]
+    const attached = attachStorySummary(input, 'Earlier.')
+
+    expect(input).toEqual([{ role: 'system', content: 'sys' }])
+    expect(attached).toEqual([
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: summaryBlock('Earlier.') }
+    ])
+  })
+})
+
+describe('story summary request layout', () => {
+  it('keeps the system message byte-identical when the next turn gains a summary', () => {
+    const open = assembleStoryRequest([{ role: 'user', content: 'Hold the line.' }], '')
+    const continued = assembleStoryRequest(
+      [
+        { role: 'user', content: 'Hold the line.' },
+        { role: 'assistant', content: 'Rapi nods.' },
+        { role: 'user', content: 'What now?' }
+      ],
+      'The squad held the line.'
+    )
+
+    expect(continued[0].role).toBe('system')
+    expect(continued[0].content).toBe(open[0].content)
+    expect(continued[0].content).toContain(prompts.systemPrompt.instructions.base)
+    expect(continued[0].content).not.toContain('The squad held the line.')
+    expect(continued[0].content).not.toContain(summaryHeader)
+    expect(open.some((message) => message.content.includes(summaryHeader))).toBe(false)
+    expect(continued[1].content).toBe(`${summaryBlock('The squad held the line.')}\n\nHold the line.`)
+    expect(continued[3].content).toContain('What now?')
+    expect(continued[3].content).toContain(sceneHeader)
+  })
+
+  it('sends the summary written during the tumbling window, not the pre-call snapshot', async () => {
+    const chatHistory: { role: string; content: string }[] = []
+    for (let turn = 0; turn < 11; turn++) {
+      chatHistory.push({ role: 'user', content: `User ${turn}` })
+      if (turn < 10) chatHistory.push({ role: 'assistant', content: `Reply ${turn}` })
+    }
+
+    let liveSummary = ''
+    const tw = await handleTumblingWindowSummarization(
+      {
+        tokenUsage: 'low',
+        chatHistory,
+        lastSummarizedIndex: 0,
+        isLoadedSession: false,
+        summarizationRetryPending: false,
+        summarizationAttemptCount: 0,
+        summarizationSuccessCount: 0,
+        summaryJustCompacted: false,
+        autoCompactSummaries: false,
+        autoCompactFrequency: 4,
+        storySummary: liveSummary,
+        isStopped: false,
+        compactMinLength: 1500
+      },
+      {
+        summarizeChunk: async () => {
+          liveSummary = 'Fresh summary of the sliced chunk.'
+
+          return true
+        },
+        performCompaction: async () => false,
+        getOverlapMessageCount: () => 0,
+        setRandomLoadingMessage: () => {}
+      },
+      '[test]'
+    )
+    const summaryForRequest = liveSummary
+    const messages = assembleStoryRequest(tw.historyToSend, summaryForRequest, {
+      effectiveCharacterProfiles: { Rapi: characterProfiles.Rapi },
+      currentLive2dId: 'c010'
+    })
+
+    expect(tw.historyToSend.map((message) => message.content)).toEqual(['User 10'])
+    expect(messages[0].content).not.toContain('Fresh summary of the sliced chunk.')
+    expect(messages[1].role).toBe('user')
+    expect(messages[1].content.startsWith(`${summaryBlock('Fresh summary of the sliced chunk.')}\n\nUser 10`)).toBe(true)
+    expect(messages.some((message) => message.content.includes('User 0'))).toBe(false)
+  })
+})
+
+describe('fingerprintText', () => {
+  it('is a stable 32-bit fingerprint and changes when the text changes', () => {
+    expect(fingerprintText('')).toBe('811c9dc5')
+    expect(fingerprintText('a')).toBe('e40c292c')
+    expect(fingerprintText('foobar')).toBe('bf9cf968')
+    expect(fingerprintText('a')).toBe(fingerprintText('a'))
+    expect(fingerprintText('summary one')).not.toBe(fingerprintText('summary two'))
   })
 })
