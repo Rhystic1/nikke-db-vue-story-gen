@@ -513,17 +513,14 @@ const openRouterFetchedModelRecords = new Map<string, any>()
 const openRouterTierSupportCache = new Map<string, OpenRouterTierSupport>()
 const openRouterTierSupportInflight = new Map<string, Promise<OpenRouterTierSupport>>()
 
+// A leading slash is a catalog request path (/api/v1/chat/completions), not a provider tier tag.
 const endpointTagStrings = (entries: any[]): string[] => {
   const tags: string[] = []
 
   for (const entry of entries) {
-    if (typeof entry === 'string') {
-      tags.push(entry)
-      continue
-    }
-    if (typeof entry?.tag === 'string') {
-      tags.push(entry.tag)
-    }
+    const raw = typeof entry === 'string' ? entry : entry?.tag
+    if (typeof raw !== 'string' || !raw || raw.startsWith('/')) continue
+    tags.push(raw)
   }
 
   return tags
@@ -534,13 +531,13 @@ const carriedEndpointTags = (model: any): string[] | null => {
 
     return null
   }
-  if (Array.isArray(model.endpoints)) {
 
-    return endpointTagStrings(model.endpoints)
-  }
-  if (Array.isArray(model.tags)) {
+  for (const source of [model.endpoints, model.tags]) {
+    if (!Array.isArray(source)) continue
+    const tags = endpointTagStrings(source)
+    if (tags.length === 0) continue
 
-    return endpointTagStrings(model.tags)
+    return tags
   }
 
   return null
