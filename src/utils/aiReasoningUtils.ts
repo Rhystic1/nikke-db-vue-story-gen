@@ -49,6 +49,18 @@ export function parsePromptCacheUsage(data: any): PromptCacheUsage | null {
   return null
 }
 
+// FNV-1a 32-bit. Sync and stable so the prompt-cache log can compare the system text across turns.
+export function fingerprintText(text: string): string {
+  let hash = 0x811c9dc5
+
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
 export function logPromptCacheUsage(data: any): void {
   const usage = parsePromptCacheUsage(data)
 

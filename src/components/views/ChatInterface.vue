@@ -1033,7 +1033,7 @@ import prompts from '@/utils/json/prompts.json'
 import { marked } from 'marked'
 import { sanitizeActions, parseFallback, parseAIResponse, isWholeWordPresent, formatChoiceAsUserTurn, filterEchoedUserChoiceDialogueInGameMode, stripChoicesWhenNotGameMode, ensureGameModeChoicesFallback, calculateYapDuration, replayMessage as replayMessageUtil, getHonorific, createTypewriterController, getEffectiveCharacterProfiles, logDebug, generateSystemPrompt as generateSystemPromptUtil, injectAnimReasonIntoJsonTemplate } from '@/utils/chatUtils'
 import { executeAiTurn } from '@/utils/chatRetryUtils'
-import { attachTurnContext, buildFirstTurnHonorificsReminder, injectFirstTurnReminder } from '@/utils/chatAiCaller'
+import { attachStorySummary, attachTurnContext, buildFirstTurnHonorificsReminder, injectFirstTurnReminder } from '@/utils/chatAiCaller'
 import { useStoryReminders } from '@/composables/useStoryReminders'
 import { usePresets } from '@/composables/usePresets'
 import { normalizeAiActionCharacterData } from '@/utils/aiActionNormalization'
@@ -1055,7 +1055,7 @@ import { buildSessionExportData, downloadSessionFile, reconstructChatHistory, va
 import StoryGuideModal from '@/components/common/StoryGenerator/StoryGuideModal.vue'
 import NikkeChatOverlay from '@/components/common/StoryGenerator/NikkeChatOverlay.vue'
 import { loadSettingsFromStorage, MOBILE_OPTIMIZATIONS_STORAGE_KEY, MOBILE_OPTIMIZATIONS_PREV_KEY, DEBUG_MODE_STORAGE_KEY } from '@/utils/settingsUtils'
-import { consumeModelReasoning, resetModelReasoning } from '@/utils/aiReasoningUtils'
+import { consumeModelReasoning, fingerprintText, resetModelReasoning } from '@/utils/aiReasoningUtils'
 
 const market = useMarket()
 
@@ -2863,10 +2863,10 @@ const getFormattedAnimationsForContext = () => {
 
 /**
  * Runs the shared tumbling-window summarization logic and applies the
- * returned state mutations to the component refs.  Returns the context
- * suffix (story summary text) and the sliced history to send to the provider.
+ * returned state mutations to the component refs. Returns the sliced
+ * history to send to the provider.
  */
-const runTumblingWindowSummarization = async (logTag: string): Promise<{ summarySuffix: string; historyToSend: { role: string; content: string }[] }> => {
+const runTumblingWindowSummarization = async (logTag: string): Promise<{ role: string; content: string }[]> => {
   const twResult = await handleTumblingWindowSummarization(
     {
       tokenUsage: tokenUsage.value,
@@ -2900,10 +2900,7 @@ const runTumblingWindowSummarization = async (logTag: string): Promise<{ summary
   if (twResult.summarizationSuccessCount !== undefined) summarizationSuccessCount.value = twResult.summarizationSuccessCount
   if (twResult.summaryJustCompacted !== undefined) summaryJustCompacted.value = twResult.summaryJustCompacted
 
-  return {
-    summarySuffix: twResult.contextSuffix,
-    historyToSend: twResult.historyToSend
-  }
+  return twResult.historyToSend
 }
 
 const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise<string> => {
@@ -2919,9 +2916,10 @@ const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise
     needsJsonReminder.value = false
   }
 
-  // The summary changes only every N turns, so the suffix stays on the system prefix.
-  const { summarySuffix, historyToSend } = await runTumblingWindowSummarization(`[${logTag}]`)
-  const systemContent = `${promptParts.system}${summarySuffix}`
+  const historyToSend = await runTumblingWindowSummarization(`[${logTag}]`)
+  // Read after summarization. The ref is the summary this turn just wrote. Goddess mode never sends one.
+  const summaryForRequest = tokenUsage.value === 'goddess' ? '' : storySummary.value
+  const systemContent = promptParts.system
   const animationContext = `Current Character: ${market.live2d.current_id}.\n\nAvailable Animations:\n${getFormattedAnimationsForContext()}`
   const turnContext = `${promptParts.turnContext}\n\n${animationContext}${retryInstruction}${getUserReminders()}`
   const dialogueHistory = historyToSend.filter((message) => message.role !== 'system')
@@ -2941,7 +2939,10 @@ const buildPromptAndDispatch = async (isRetry: boolean, logTag: string): Promise
   )
   messages = injectFirstTurnReminder(messages, firstTurnReminder)
   messages = attachTurnContext(messages, turnContext)
+  messages = attachStorySummary(messages, summaryForRequest)
   messages = attachCounselingScene(messages, counselingScene.value)
+  const systemText = messages[0].content
+  logDebug(`[PromptCache] system fingerprint=${fingerprintText(systemText)} chars=${systemText.length}`)
 
   return await runStoryProvider(apiProvider.value, 'story', currentRun(messages, 'story'))
 }

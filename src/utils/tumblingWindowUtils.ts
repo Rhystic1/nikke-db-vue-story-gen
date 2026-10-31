@@ -23,7 +23,7 @@ export interface TumblingWindowCallbacks {
   setRandomLoadingMessage: () => void
 }
 
-/** Describes every ref mutation + contextMsg / historyToSend the caller should apply. */
+/** Describes every ref mutation and the sliced history the caller should apply. */
 export interface TumblingWindowResult {
   /** New value for lastSummarizedIndex (undefined = no change) */
   lastSummarizedIndex?: number
@@ -37,8 +37,6 @@ export interface TumblingWindowResult {
   summarizationSuccessCount?: number
   /** New value for summaryJustCompacted (undefined = no change) */
   summaryJustCompacted?: boolean
-  /** The contextMsg suffix to append (story summary line, or empty) */
-  contextSuffix: string
   /** The sliced history to send to the provider */
   historyToSend: { role: string; content: string }[]
 }
@@ -56,7 +54,6 @@ export interface TumblingWindowResult {
  */
 export async function handleTumblingWindowSummarization(state: TumblingWindowState, cbs: TumblingWindowCallbacks, logTag: string): Promise<TumblingWindowResult> {
   const result: TumblingWindowResult = {
-    contextSuffix: '',
     historyToSend: state.chatHistory
   }
 
@@ -119,10 +116,8 @@ export async function handleTumblingWindowSummarization(state: TumblingWindowSta
       if (shouldSummarizeDueToOverflow) {
         loadedSession = false
       }
-      // Auto-compact summary if enabled and threshold reached
-      // NOTE: we read storySummary from state — the value may have been updated by summarizeChunk,
-      // but the caller will re-read the ref after applying the result.  The length check here uses
-      // the *pre-call* value which is conservative (the summary only grows).
+      // state.storySummary is the pre-call snapshot. A write that first crosses
+      // compactMinLength waits for a later interval. The summary only grows between compactions.
       if (state.autoCompactSummaries && successCount > 0 && successCount % state.autoCompactFrequency === 0 && state.storySummary.length >= state.compactMinLength && !state.isStopped) {
         if (import.meta.env.DEV) console.log(`${logTag} Auto-compacting summary (after ${successCount} summarizations)...`)
         await cbs.performCompaction()
@@ -143,11 +138,6 @@ export async function handleTumblingWindowSummarization(state: TumblingWindowSta
     result.summarizationAttemptCount = attemptCount
     result.summarizationSuccessCount = successCount
     result.summaryJustCompacted = justCompacted
-  }
-
-  // Append story summary to context if available
-  if (state.storySummary) {
-    result.contextSuffix = `\n\nPREVIOUS STORY SUMMARY:\n${state.storySummary}`
   }
 
   // Slice history from the (possibly updated) lastSummarizedIndex
