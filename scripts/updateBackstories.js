@@ -23,7 +23,8 @@
  *   --target-file <name>  Target JSON file for create mode: base (default) or variants
  *   --update-scope <name> Scope for update mode: single (requires --char-name) or all (default)
  *   --provider <name>     API provider: gemini, openrouter, or pollinations
- *   --openrouter-model    OpenRouter model id. Listed choices: x-ai/grok-4.3 (default), z-ai/glm-5.2, deepseek/deepseek-v4.1-flash. Any other id is accepted.
+ *   --openrouter-model    OpenRouter model id. Listed choices: openrouter/auto (Auto, default), x-ai/grok-4.3, z-ai/glm-5.2, deepseek/deepseek-v4.1-flash. Any other id is accepted.
+ *   --cost-tier           Auto router cost_tier when the model is openrouter/auto: low, medium (default), or high
  *   --pollinations-model  Pollinations model: grok (default), grok-large, or claude-fast
  *   --force               Skip overwrite confirmation in create mode
  *   --json-output         Print machine-readable JSON result on the last line
@@ -47,10 +48,14 @@ const WIKI_PROXY_URL = 'https://nikke-wiki-proxy.rhysticone.workers.dev'
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent'
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const POLLINATIONS_API_URL = 'https://gen.pollinations.ai/v1/chat/completions'
-let OPENROUTER_MODEL = 'x-ai/grok-4.3'
-const OPENROUTER_MODELS = ['x-ai/grok-4.3', 'z-ai/glm-5.2', 'deepseek/deepseek-v4.1-flash']
+const OPENROUTER_AUTO_MODEL = 'openrouter/auto'
+let OPENROUTER_MODEL = OPENROUTER_AUTO_MODEL
+const OPENROUTER_MODELS = [OPENROUTER_AUTO_MODEL, 'x-ai/grok-4.3', 'z-ai/glm-5.2', 'deepseek/deepseek-v4.1-flash']
+const OPENROUTER_COST_TIERS = ['low', 'medium', 'high']
+let OPENROUTER_COST_TIER = 'medium'
 const POLLINATIONS_MODELS = ['grok', 'grok-large', 'claude-fast']
 const OPENROUTER_MODEL_CAPABILITIES = {
+  [OPENROUTER_AUTO_MODEL]: 'image',
   'x-ai/grok-4.3': 'image',
   'z-ai/glm-5.2': 'text',
   'deepseek/deepseek-v4.1-flash': 'image'
@@ -113,6 +118,7 @@ const CLI_TARGET_FILE = getArgValue('--target-file')
 const CLI_UPDATE_SCOPE = getArgValue('--update-scope')
 const CLI_PROVIDER = getArgValue('--provider')
 const CLI_OPENROUTER_MODEL = getArgValue('--openrouter-model')
+const CLI_COST_TIER = getArgValue('--cost-tier')
 const CLI_POLLINATIONS_MODEL = getArgValue('--pollinations-model')
 const CLI_FORCE = args.includes('--force')
 const CLI_JSON_OUTPUT = args.includes('--json-output')
@@ -168,6 +174,10 @@ function getProviderLogLabel() {
     return `${getProviderDisplayName()} (${POLLINATIONS_MODEL})`
   }
   if (API_PROVIDER === 'openrouter') {
+    if (OPENROUTER_MODEL === OPENROUTER_AUTO_MODEL) {
+      return `${getProviderDisplayName()} (${OPENROUTER_MODEL}, cost_tier ${OPENROUTER_COST_TIER})`
+    }
+
     return `${getProviderDisplayName()} (${OPENROUTER_MODEL})`
   }
   return getProviderDisplayName()
@@ -890,6 +900,16 @@ async function extractDataOpenRouter(characterName, wikiContent, imageUrl = null
     reasoning: { effort: 'low' }
   }
 
+  // Auto reads cost_tier from its plugin. Other model ids stay a plain model field.
+  if (OPENROUTER_MODEL === OPENROUTER_AUTO_MODEL) {
+    requestBody.plugins = [
+      {
+        id: 'auto-router',
+        cost_tier: OPENROUTER_COST_TIER
+      }
+    ]
+  }
+
   try {
     const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
@@ -1475,7 +1495,8 @@ async function selectPollinationsModel() {
 async function promptOpenRouterModelChoice() {
   console.log('\nWhich OpenRouter model would you like to use?')
   OPENROUTER_MODELS.forEach((id, index) => {
-    const label = index === 0 ? `${id} (current default)` : id
+    const name = id === OPENROUTER_AUTO_MODEL ? `Auto (${id})` : id
+    const label = index === 0 ? `${name} (current default)` : name
     console.log(`${index + 1}) ${label}`)
   })
   const customIndex = OPENROUTER_MODELS.length + 1
@@ -1498,6 +1519,50 @@ async function promptOpenRouterModelChoice() {
   console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
 }
 
+// Numbered menu. Default is medium. Also accepts the tier names.
+async function promptOpenRouterCostTier() {
+  console.log('\nWhich Auto router cost_tier would you like to use?')
+  console.log('1) low')
+  console.log('2) medium (default)')
+  console.log('3) high')
+
+  const answer = (await ask('\nEnter choice (1, 2, or 3): ')).toLowerCase()
+  if (answer === '1' || answer === 'low') {
+    OPENROUTER_COST_TIER = 'low'
+  } else if (answer === '3' || answer === 'high') {
+    OPENROUTER_COST_TIER = 'high'
+  } else {
+    OPENROUTER_COST_TIER = 'medium'
+  }
+
+  console.log(`Selected OpenRouter cost_tier: ${OPENROUTER_COST_TIER}\n`)
+}
+
+// Flag, non-interactive default, or prompt. Sent only for the Auto router.
+async function selectOpenRouterCostTier() {
+  if (CLI_COST_TIER) {
+    const tier = CLI_COST_TIER.trim()
+    if (!OPENROUTER_COST_TIERS.includes(tier)) {
+      console.error(`Error: Invalid --cost-tier "${CLI_COST_TIER}". Must be: ${OPENROUTER_COST_TIERS.join(', ')}`)
+      process.exit(1)
+    }
+    OPENROUTER_COST_TIER = tier
+  }
+
+  if (OPENROUTER_MODEL !== OPENROUTER_AUTO_MODEL) {
+    return
+  }
+
+  if (!CLI_COST_TIER && !NON_INTERACTIVE) {
+    await promptOpenRouterCostTier()
+
+    return
+  }
+
+  const note = CLI_COST_TIER ? '' : ' (default for non-interactive)'
+  console.log(`Selected OpenRouter cost_tier: ${OPENROUTER_COST_TIER}${note}\n`)
+}
+
 // Select OpenRouter model
 async function selectOpenRouterModel() {
   OPENROUTER_MODEL_SELECTED = true
@@ -1509,17 +1574,13 @@ async function selectOpenRouterModel() {
     }
     OPENROUTER_MODEL = modelId
     console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL}\n`)
-
-    return
-  }
-
-  if (NON_INTERACTIVE) {
+  } else if (NON_INTERACTIVE) {
     console.log(`Selected OpenRouter model: ${OPENROUTER_MODEL} (default for non-interactive)\n`)
-
-    return
+  } else {
+    await promptOpenRouterModelChoice()
   }
 
-  await promptOpenRouterModelChoice()
+  await selectOpenRouterCostTier()
 }
 
 // Select API provider
