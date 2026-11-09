@@ -1366,58 +1366,64 @@ function loadBatchRoster() {
   return entries
 }
 
-function formatBatchChoice(entry, index, included) {
+function formatBatchChoice(entry, included) {
   const mark = included.has(entry.name) ? 'x' : ' '
 
-  return `${index + 1}) [${mark}] ${entry.name} (${entry.fileLabel})`
+  return `[${mark}] ${entry.name} (${entry.fileLabel})`
 }
 
-function toggleSelectedName(name, entries, included) {
-  if (included.has(name)) {
-    included.delete(name)
-  } else {
-    included.add(name)
-  }
-
-  entries.forEach((entry, index) => {
-    if (entry.name === name) console.log(formatBatchChoice(entry, index, included))
-  })
-}
-
-// Number, comma-separated numbers, or an exact name. Returns false when the input is not a toggle.
-function toggleBatchAnswer(answer, entries, included) {
-  const exact = entries.find((entry) => entry.name === answer)
-  if (exact) {
-    toggleSelectedName(exact.name, entries, included)
-
-    return true
-  }
-
-  const tokens = answer.split(',').map((token) => token.trim()).filter(Boolean)
-  if (!tokens.length) return false
-
-  if (tokens.every((token) => /^\d+$/.test(token))) {
-    for (const token of tokens) {
-      const index = parseInt(token, 10) - 1
-      if (index < 0 || index >= entries.length) {
-        console.log(`No character at ${token}.`)
-        continue
-      }
-      toggleSelectedName(entries[index].name, entries, included)
-    }
-
-    return true
-  }
-
+function markedNames(entries, included) {
   const names = []
-  for (const token of tokens) {
-    const match = entries.find((entry) => entry.name === token)
-    if (!match) return false
-    names.push(match.name)
-  }
-  names.forEach((name) => toggleSelectedName(name, entries, included))
+  const seen = new Set()
+  entries.forEach((entry) => {
+    if (!included.has(entry.name) || seen.has(entry.name)) return
+    seen.add(entry.name)
+    names.push(entry.name)
+  })
 
-  return true
+  return names
+}
+
+function fitPickerLine(text, columns) {
+  if (text.length <= columns) return text
+  if (columns <= 3) return text.slice(0, columns)
+
+  return `${text.slice(0, columns - 3)}...`
+}
+
+function pickerLayout(output) {
+  const screenRows = Math.max(output.rows || 24, 2)
+  const rows = screenRows - 1
+  const columns = Math.max(output.columns || 80, 20)
+  let header = 3
+  let footer = 3
+  while (header + footer >= rows && (header > 0 || footer > 0)) {
+    if (footer > 0) footer -= 1
+    else header -= 1
+  }
+  const listHeight = Math.max(1, rows - header - footer)
+
+  return { rows, columns, header, footer, listHeight }
+}
+
+function pickerWindow(length, cursor, height) {
+  const size = Math.max(1, Math.min(length, height))
+  let start = cursor - Math.floor((size - 1) / 2)
+  if (start < 0) start = 0
+  if (start + size > length) start = Math.max(0, length - size)
+
+  return { start, size }
+}
+
+function paintPickerLine(text, columns, selected, active) {
+  const width = Math.max(1, columns - 1)
+  const padded = fitPickerLine(text, width).padEnd(width, ' ')
+  const codes = []
+  if (selected) codes.push('1')
+  if (active) codes.push('7')
+  if (!codes.length) return padded
+
+  return `\x1b[${codes.join(';')}m${padded}\x1b[0m`
 }
 
 // Validates names against the batch roster and stores them in batch order.
@@ -1473,6 +1479,7 @@ function logSelectedUpdate(entries, lead) {
   console.log('')
 }
 
+// Checklist for choice 3. Arrow keys move. Space toggles the highlighted name. Enter confirms.
 async function promptBatchSelection() {
   const entries = loadBatchRoster()
   if (!entries.length) {
@@ -1480,75 +1487,170 @@ async function promptBatchSelection() {
     process.exit(1)
   }
 
-  const included = new Set()
-
-  console.log('Select characters to include in the batch.')
-  console.log('Enter a number to toggle that character. Separate multiple numbers with commas.')
-  console.log('Enter an exact character name to toggle it.')
-  console.log('all) include every character')
-  console.log('none) clear the selection')
-  console.log('list) show the current selection')
-  console.log('done) update the selected characters')
-  console.log('')
-  entries.forEach((entry, index) => {
-    console.log(formatBatchChoice(entry, index, included))
-  })
-  console.log('')
-  console.log('Included: 0')
-
-  const rl = readline.createInterface({
-    input: promptInput || process.stdin,
-    output: promptOutput || process.stdout
-  })
-  const askLine = (question) => new Promise((resolve) => {
-    rl.question(question, (input) => {
-      resolve(String(input || '').trim())
-    })
-  })
-
-  while (true) {
-    const answer = await askLine('\nEnter choice (number, name, all, none, list, or done): ')
-    const command = answer.toLowerCase()
-
-    if (command === 'done') break
-
-    if (command === 'list') {
-      entries.forEach((entry, index) => {
-        console.log(formatBatchChoice(entry, index, included))
-      })
-      console.log(`Included: ${included.size}`)
-      continue
-    }
-
-    if (command === 'all') {
-      entries.forEach((entry) => included.add(entry.name))
-      console.log(`Included: ${included.size}`)
-      continue
-    }
-
-    if (command === 'none') {
-      included.clear()
-      console.log('Included: 0')
-      continue
-    }
-
-    if (toggleBatchAnswer(answer, entries, included)) {
-      console.log(`Included: ${included.size}`)
-      continue
-    }
-
-    console.log('Enter a number, comma-separated numbers, an exact name, all, none, list, or done.')
+  const input = promptInput || process.stdin
+  const output = promptOutput || process.stdout
+  if (!input.isTTY || typeof input.setRawMode !== 'function' || !output.isTTY) {
+    console.error('Error: Selecting characters requires an interactive terminal.')
+    process.exit(1)
   }
 
-  rl.close()
+  const included = new Set()
+  let cursor = 0
+  let restored = false
 
-  const names = []
-  const seen = new Set()
-  entries.forEach((entry) => {
-    if (!included.has(entry.name) || seen.has(entry.name)) return
-    seen.add(entry.name)
-    names.push(entry.name)
+  readline.emitKeypressEvents(input)
+  input.setRawMode(true)
+  input.resume()
+  output.write('\x1b[?1049h\x1b[?25l')
+
+  const names = await new Promise((resolve) => {
+    const detach = () => {
+      input.removeListener('keypress', onKey)
+      output.removeListener('resize', render)
+      process.removeListener('SIGINT', onCancel)
+      process.removeListener('SIGTERM', onCancel)
+      process.removeListener('exit', restore)
+    }
+
+    const restore = () => {
+      if (restored) return
+      restored = true
+      detach()
+      try {
+        if (input.isRaw) input.setRawMode(false)
+      } catch (e) {
+        // The terminal may already be closed.
+      }
+      try {
+        input.pause()
+      } catch (e) {
+        // ignore
+      }
+      try {
+        output.write('\x1b[?1049l\x1b[?25h')
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const render = () => {
+      const { rows, columns, header, footer, listHeight } = pickerLayout(output)
+      const { start, size } = pickerWindow(entries.length, cursor, listHeight)
+      const width = Math.max(1, columns - 1)
+      const headerLines = [
+        'Select characters to include in the batch.',
+        'Up and down move. Space toggles the highlighted name. Enter confirms.',
+        'PgUp and PgDn page. Home and End jump.'
+      ].slice(0, header).map((line) => fitPickerLine(line, width))
+      const lines = headerLines.slice()
+      for (let index = start; index < start + size && index < entries.length; index++) {
+        const entry = entries[index]
+        const active = index === cursor
+        const pointer = active ? '>' : ' '
+        lines.push(paintPickerLine(`${pointer} ${formatBatchChoice(entry, included)}`, columns, included.has(entry.name), active))
+      }
+      const chosen = markedNames(entries, included)
+      const selectedLine = chosen.length
+        ? `Selected: ${chosen.length} - ${chosen.join(', ')}`
+        : 'Selected: 0'
+      const rangeLine = entries.length > size
+        ? `Showing ${start + 1}-${Math.min(start + size, entries.length)} of ${entries.length}`
+        : `Showing all ${entries.length}`
+      const footerLines = [
+        rangeLine,
+        selectedLine,
+        'Enter runs the marked names. Ctrl+C cancels.'
+      ].slice(0, footer).map((line) => fitPickerLine(line, width))
+      lines.push(...footerLines)
+      readline.cursorTo(output, 0, 0)
+      readline.clearScreenDown(output)
+      output.write(lines.slice(0, rows).join('\n'))
+    }
+
+    const moveCursor = (next) => {
+      if (next < 0) cursor = 0
+      else if (next >= entries.length) cursor = entries.length - 1
+      else cursor = next
+      render()
+    }
+
+    const onKey = (str, key) => {
+      if (restored || !key) return
+
+      if (key.ctrl && key.name === 'c') {
+        onCancel()
+
+        return
+      }
+
+      if (key.name === 'up') {
+        moveCursor(cursor - 1)
+
+        return
+      }
+
+      if (key.name === 'down') {
+        moveCursor(cursor + 1)
+
+        return
+      }
+
+      if (key.name === 'pageup') {
+        moveCursor(cursor - pickerLayout(output).listHeight)
+
+        return
+      }
+
+      if (key.name === 'pagedown') {
+        moveCursor(cursor + pickerLayout(output).listHeight)
+
+        return
+      }
+
+      if (key.name === 'home') {
+        moveCursor(0)
+
+        return
+      }
+
+      if (key.name === 'end') {
+        moveCursor(entries.length - 1)
+
+        return
+      }
+
+      if (key.name === 'space' || str === ' ' || key.sequence === ' ') {
+        const name = entries[cursor].name
+        if (included.has(name)) {
+          included.delete(name)
+        } else {
+          included.add(name)
+        }
+        render()
+
+        return
+      }
+
+      if (key.name === 'return' || key.name === 'enter') {
+        restore()
+        resolve(markedNames(entries, included))
+      }
+    }
+
+    const onCancel = () => {
+      restore()
+      console.error('\nSelection cancelled.')
+      process.exit(1)
+    }
+
+    process.once('SIGINT', onCancel)
+    process.once('SIGTERM', onCancel)
+    process.once('exit', restore)
+    input.on('keypress', onKey)
+    output.on('resize', render)
+    render()
   })
+
   const ordered = assignSelectedCharacters(names)
   logSelectedUpdate(ordered, '\nWill update backstories for')
 }
