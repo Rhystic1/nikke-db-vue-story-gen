@@ -11,6 +11,7 @@
  *   node scripts/updateBackstories.js --no-skip-existing           # Re-process all characters
  *   node scripts/updateBackstories.js --skip-preview                # In update mode, save without confirmation
  *   node scripts/updateBackstories.js --mode update --update-scope all --provider gemini --skip-preview
+ *   node scripts/updateBackstories.js --mode update --update-scope selected --char-names "Rapi,Anis: Sparkling Summer" --provider gemini --skip-preview
  *   node scripts/updateBackstories.js --mode create --char-name "New Nikke" --target-file base --force --provider openrouter
  *   node scripts/updateBackstories.js --mode base --shard 1/4 --non-interactive --json-output
  *
@@ -20,8 +21,9 @@
  *   --non-interactive     Disable all interactive prompts; requires --mode and other mode-specific flags
  *   --mode <name>         Set mode: base, variants, visual, create, commander, or update
  *   --char-name <name>    Character name for create mode or --update-scope single
+ *   --char-names <list>   Comma-separated names for --update-scope selected
  *   --target-file <name>  Target JSON file for create mode: base (default) or variants
- *   --update-scope <name> Scope for update mode: single (requires --char-name) or all (default)
+ *   --update-scope <name> Scope for update mode: single (requires --char-name), selected (requires --char-names), or all (default)
  *   --provider <name>     API provider: gemini, openrouter, or pollinations
  *   --openrouter-model    OpenRouter model id. Listed choices: openrouter/auto (Auto, default), x-ai/grok-4.3, z-ai/glm-5.2, deepseek/deepseek-v4.1-flash. Any other id is accepted.
  *   --cost-tier           Auto router cost_tier when the model is openrouter/auto: low, medium (default), or high
@@ -114,6 +116,7 @@ const SKIP_PREVIEW = args.includes('--skip-preview')
 let NON_INTERACTIVE = args.includes('--non-interactive') || !process.stdin.isTTY
 const CLI_MODE = getArgValue('--mode')
 const CLI_CHAR_NAME = getArgValue('--char-name')
+const CLI_CHAR_NAMES = getArgValue('--char-names')
 const CLI_TARGET_FILE = getArgValue('--target-file')
 const CLI_UPDATE_SCOPE = getArgValue('--update-scope')
 const CLI_PROVIDER = getArgValue('--provider')
@@ -136,7 +139,8 @@ let CREATE_PROFILES_PATH = null
 
 // Update mode state
 let UPDATE_CHAR_NAME = null // single character name, or null for all
-let UPDATE_SCOPE = 'all' // 'single' or 'all'
+let UPDATE_SCOPE = 'all' // 'single', 'selected', or 'all'
+let UPDATE_SELECTED_NAMES = null // names kept when UPDATE_SCOPE is 'selected'
 
 // API Provider selection
 let API_PROVIDER = null
@@ -1335,7 +1339,323 @@ async function selectNewCharacter() {
   }
 }
 
-// Prompt for update target: single character or all characters (update mode only)
+function parseCharacterNameList(value) {
+  if (!value) return []
+
+  return value.split(',').map((name) => name.trim()).filter(Boolean)
+}
+
+// Same character order the all-characters batch walks: base file, then variants.
+function loadBatchRoster() {
+  const entries = []
+
+  const addFile = (filePath, fileLabel) => {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+      for (const name of Object.keys(data)) {
+        entries.push({ name, fileLabel })
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  addFile(PROFILES_BASE_PATH, 'characterProfiles.json')
+  addFile(PROFILES_VARIANTS_PATH, 'characterProfilesVariants.json')
+
+  return entries
+}
+
+function formatBatchChoice(entry, included) {
+  const mark = included.has(entry.name) ? 'x' : ' '
+
+  return `[${mark}] ${entry.name} (${entry.fileLabel})`
+}
+
+function markedNames(entries, included) {
+  const names = []
+  const seen = new Set()
+  entries.forEach((entry) => {
+    if (!included.has(entry.name) || seen.has(entry.name)) return
+    seen.add(entry.name)
+    names.push(entry.name)
+  })
+
+  return names
+}
+
+function fitPickerLine(text, columns) {
+  if (text.length <= columns) return text
+  if (columns <= 3) return text.slice(0, columns)
+
+  return `${text.slice(0, columns - 3)}...`
+}
+
+function pickerLayout(output) {
+  const screenRows = Math.max(output.rows || 24, 2)
+  const rows = screenRows - 1
+  const columns = Math.max(output.columns || 80, 20)
+  let header = 3
+  let footer = 3
+  while (header + footer >= rows && (header > 0 || footer > 0)) {
+    if (footer > 0) footer -= 1
+    else header -= 1
+  }
+  const listHeight = Math.max(1, rows - header - footer)
+
+  return { rows, columns, header, footer, listHeight }
+}
+
+function pickerWindow(length, cursor, height) {
+  const size = Math.max(1, Math.min(length, height))
+  let start = cursor - Math.floor((size - 1) / 2)
+  if (start < 0) start = 0
+  if (start + size > length) start = Math.max(0, length - size)
+
+  return { start, size }
+}
+
+function paintPickerLine(text, columns, selected, active) {
+  const width = Math.max(1, columns - 1)
+  const padded = fitPickerLine(text, width).padEnd(width, ' ')
+  const codes = []
+  if (selected) codes.push('1')
+  if (active) codes.push('7')
+  if (!codes.length) return padded
+
+  return `\x1b[${codes.join(';')}m${padded}\x1b[0m`
+}
+
+// Validates names against the batch roster and stores them in batch order.
+function assignSelectedCharacters(names) {
+  const roster = loadBatchRoster()
+  const known = new Map()
+  roster.forEach((entry) => {
+    if (!known.has(entry.name)) known.set(entry.name, entry.fileLabel)
+  })
+
+  const wanted = []
+  const seen = new Set()
+  names.forEach((name) => {
+    if (seen.has(name)) return
+    seen.add(name)
+    wanted.push(name)
+  })
+
+  const missing = wanted.filter((name) => !known.has(name))
+  if (missing.length === 1) {
+    console.error(`Error: "${missing[0]}" not found in either characterProfiles.json or characterProfilesVariants.json.`)
+    process.exit(1)
+  }
+  if (missing.length > 1) {
+    console.error(`Error: Not found in either characterProfiles.json or characterProfilesVariants.json: ${missing.join(', ')}`)
+    process.exit(1)
+  }
+  if (!wanted.length) {
+    console.error('Error: No characters selected.')
+    process.exit(1)
+  }
+
+  const ordered = []
+  const placed = new Set()
+  roster.forEach((entry) => {
+    if (!seen.has(entry.name) || placed.has(entry.name)) return
+    placed.add(entry.name)
+    ordered.push(entry)
+  })
+
+  UPDATE_SCOPE = 'selected'
+  UPDATE_SELECTED_NAMES = ordered.map((entry) => entry.name)
+
+  return ordered
+}
+
+function logSelectedUpdate(entries, lead) {
+  const countLabel = entries.length === 1 ? 'character' : 'characters'
+  console.log(`${lead} ${entries.length} selected ${countLabel}:`)
+  entries.forEach((entry) => {
+    console.log(`  "${entry.name}" (found in ${entry.fileLabel})`)
+  })
+  console.log('')
+}
+
+// Checklist for choice 3. Arrow keys move. Space toggles the highlighted name. Enter confirms.
+async function promptBatchSelection() {
+  const entries = loadBatchRoster()
+  if (!entries.length) {
+    console.error('Error: No characters found in either characterProfiles.json or characterProfilesVariants.json.')
+    process.exit(1)
+  }
+
+  const input = promptInput || process.stdin
+  const output = promptOutput || process.stdout
+  if (!input.isTTY || typeof input.setRawMode !== 'function' || !output.isTTY) {
+    console.error('Error: Selecting characters requires an interactive terminal.')
+    process.exit(1)
+  }
+
+  const included = new Set()
+  let cursor = 0
+  let restored = false
+
+  readline.emitKeypressEvents(input)
+  input.setRawMode(true)
+  input.resume()
+  output.write('\x1b[?1049h\x1b[?25l')
+
+  const names = await new Promise((resolve) => {
+    const detach = () => {
+      input.removeListener('keypress', onKey)
+      output.removeListener('resize', render)
+      process.removeListener('SIGINT', onCancel)
+      process.removeListener('SIGTERM', onCancel)
+      process.removeListener('exit', restore)
+    }
+
+    const restore = () => {
+      if (restored) return
+      restored = true
+      detach()
+      try {
+        if (input.isRaw) input.setRawMode(false)
+      } catch (e) {
+        // The terminal may already be closed.
+      }
+      try {
+        input.pause()
+      } catch (e) {
+        // ignore
+      }
+      try {
+        output.write('\x1b[?1049l\x1b[?25h')
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const render = () => {
+      const { rows, columns, header, footer, listHeight } = pickerLayout(output)
+      const { start, size } = pickerWindow(entries.length, cursor, listHeight)
+      const width = Math.max(1, columns - 1)
+      const headerLines = [
+        'Select characters to include in the batch.',
+        'Up and down move. Space toggles the highlighted name. Enter confirms.',
+        'PgUp and PgDn page. Home and End jump.'
+      ].slice(0, header).map((line) => fitPickerLine(line, width))
+      const lines = headerLines.slice()
+      for (let index = start; index < start + size && index < entries.length; index++) {
+        const entry = entries[index]
+        const active = index === cursor
+        const pointer = active ? '>' : ' '
+        lines.push(paintPickerLine(`${pointer} ${formatBatchChoice(entry, included)}`, columns, included.has(entry.name), active))
+      }
+      const chosen = markedNames(entries, included)
+      const selectedLine = chosen.length
+        ? `Selected: ${chosen.length} - ${chosen.join(', ')}`
+        : 'Selected: 0'
+      const rangeLine = entries.length > size
+        ? `Showing ${start + 1}-${Math.min(start + size, entries.length)} of ${entries.length}`
+        : `Showing all ${entries.length}`
+      const footerLines = [
+        rangeLine,
+        selectedLine,
+        'Enter runs the marked names. Ctrl+C cancels.'
+      ].slice(0, footer).map((line) => fitPickerLine(line, width))
+      lines.push(...footerLines)
+      readline.cursorTo(output, 0, 0)
+      readline.clearScreenDown(output)
+      output.write(lines.slice(0, rows).join('\n'))
+    }
+
+    const moveCursor = (next) => {
+      if (next < 0) cursor = 0
+      else if (next >= entries.length) cursor = entries.length - 1
+      else cursor = next
+      render()
+    }
+
+    const onKey = (str, key) => {
+      if (restored || !key) return
+
+      if (key.ctrl && key.name === 'c') {
+        onCancel()
+
+        return
+      }
+
+      if (key.name === 'up') {
+        moveCursor(cursor - 1)
+
+        return
+      }
+
+      if (key.name === 'down') {
+        moveCursor(cursor + 1)
+
+        return
+      }
+
+      if (key.name === 'pageup') {
+        moveCursor(cursor - pickerLayout(output).listHeight)
+
+        return
+      }
+
+      if (key.name === 'pagedown') {
+        moveCursor(cursor + pickerLayout(output).listHeight)
+
+        return
+      }
+
+      if (key.name === 'home') {
+        moveCursor(0)
+
+        return
+      }
+
+      if (key.name === 'end') {
+        moveCursor(entries.length - 1)
+
+        return
+      }
+
+      if (key.name === 'space' || str === ' ' || key.sequence === ' ') {
+        const name = entries[cursor].name
+        if (included.has(name)) {
+          included.delete(name)
+        } else {
+          included.add(name)
+        }
+        render()
+
+        return
+      }
+
+      if (key.name === 'return' || key.name === 'enter') {
+        restore()
+        resolve(markedNames(entries, included))
+      }
+    }
+
+    const onCancel = () => {
+      restore()
+      console.error('\nSelection cancelled.')
+      process.exit(1)
+    }
+
+    process.once('SIGINT', onCancel)
+    process.once('SIGTERM', onCancel)
+    process.once('exit', restore)
+    input.on('keypress', onKey)
+    output.on('resize', render)
+    render()
+  })
+
+  const ordered = assignSelectedCharacters(names)
+  logSelectedUpdate(ordered, '\nWill update backstories for')
+}
+
+// Prompt for update target: single character, all characters, or a selection (update mode only)
 async function selectUpdateTarget() {
   if (CLI_UPDATE_SCOPE) {
     if (CLI_UPDATE_SCOPE === 'single') {
@@ -1366,8 +1686,17 @@ async function selectUpdateTarget() {
       UPDATE_SCOPE = 'all'
       console.log('Updating backstories for all characters in both JSON files\n')
       return
+    } else if (CLI_UPDATE_SCOPE === 'selected') {
+      const names = parseCharacterNameList(CLI_CHAR_NAMES)
+      if (!names.length) {
+        console.error('Error: --char-names is required when --update-scope is "selected"')
+        process.exit(1)
+      }
+      const ordered = assignSelectedCharacters(names)
+      logSelectedUpdate(ordered, 'Updating backstories for')
+      return
     } else {
-      console.error(`Error: Invalid --update-scope "${CLI_UPDATE_SCOPE}". Must be "single" or "all".`)
+      console.error(`Error: Invalid --update-scope "${CLI_UPDATE_SCOPE}". Must be "single", "selected", or "all".`)
       process.exit(1)
     }
   }
@@ -1386,12 +1715,19 @@ async function selectUpdateTarget() {
   console.log('How would you like to update backstories?')
   console.log('1) Update a single character (type exact name)')
   console.log('2) Update all characters in both JSON files')
+  console.log('3) Select characters to include in the batch')
 
   const scopeChoice = await new Promise((resolve) => {
-    rl.question('\nEnter choice (1 or 2): ', (input) => {
+    rl.question('\nEnter choice (1, 2, or 3): ', (input) => {
       resolve(input.trim())
     })
   })
+
+  if (scopeChoice === '3') {
+    rl.close()
+    await promptBatchSelection()
+    return
+  }
 
   if (scopeChoice === '1') {
     UPDATE_SCOPE = 'single'
@@ -2150,6 +2486,15 @@ async function processCommanderRelationships() {
   return totalStats
 }
 
+// Keep the all-characters batch, dropping anyone the operator left out.
+function filterSelectedBatch(characters) {
+  if (UPDATE_SCOPE !== 'selected') return characters
+
+  const selected = new Set(UPDATE_SELECTED_NAMES || [])
+
+  return characters.filter((name) => selected.has(name))
+}
+
 async function processBackstoryUpdates() {
   const filesToProcess = []
 
@@ -2173,7 +2518,7 @@ async function processBackstoryUpdates() {
       // ignore
     }
   } else {
-    // All characters: process both files
+    // All characters: process both files. Selected scope filters this set below.
     filesToProcess.push({ path: PROFILES_BASE_PATH, label: 'Base Characters', nameMode: 'base', characters: null })
     filesToProcess.push({ path: PROFILES_VARIANTS_PATH, label: 'Variant Characters', nameMode: 'variants', characters: null })
   }
@@ -2181,24 +2526,29 @@ async function processBackstoryUpdates() {
   let totalStats = { successCount: 0, failCount: 0, skippedCount: 0, unchangedCount: 0, generatedCount: 0, total: 0 }
 
   for (const fileInfo of filesToProcess) {
-    console.log(`\nProcessing ${fileInfo.label}...`)
-    console.log('-'.repeat(60))
-
     let profiles
     try {
       const data = fs.readFileSync(fileInfo.path, 'utf8')
       profiles = JSON.parse(data)
     } catch (e) {
+      console.log(`\nProcessing ${fileInfo.label}...`)
+      console.log('-'.repeat(60))
       console.error(`Error loading ${fileInfo.label}:`, e.message)
       continue
     }
 
     const allCharacters = fileInfo.characters || Object.keys(profiles)
-    const { characters, total } = applyShard(allCharacters)
+    const batchCharacters = filterSelectedBatch(allCharacters)
+    if (UPDATE_SCOPE === 'selected' && batchCharacters.length === 0) continue
+
+    console.log(`\nProcessing ${fileInfo.label}...`)
+    console.log('-'.repeat(60))
+
+    const { characters, total } = applyShard(batchCharacters)
     totalStats.total += total
 
     if (CLI_SHARD) {
-      console.log(`Found ${allCharacters.length} characters total, processing ${total} in this shard`)
+      console.log(`Found ${batchCharacters.length} characters total, processing ${total} in this shard`)
     } else {
       console.log(`Found ${total} characters to process`)
     }
@@ -2410,7 +2760,14 @@ async function main() {
   } else if (MODE === 'commander') {
     modeLabel = 'Fill Missing Commander Relationships'
   } else if (MODE === 'update') {
-    modeLabel = UPDATE_SCOPE === 'single' ? `Update Backstory: ${UPDATE_CHAR_NAME}` : 'Update Characters\' Backstories'
+    if (UPDATE_SCOPE === 'single') {
+      modeLabel = `Update Backstory: ${UPDATE_CHAR_NAME}`
+    } else if (UPDATE_SCOPE === 'selected') {
+      const count = UPDATE_SELECTED_NAMES ? UPDATE_SELECTED_NAMES.length : 0
+      modeLabel = `Update Characters' Backstories (${count} selected)`
+    } else {
+      modeLabel = 'Update Characters\' Backstories'
+    }
   } else {
     modeLabel = 'Variant Characters'
   }
