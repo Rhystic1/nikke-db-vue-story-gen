@@ -164,6 +164,7 @@ import story10 from '@/utils/json/Gallery/story10.json'
 import story11 from '@/utils/json/Gallery/story11.json'
 import story12 from '@/utils/json/Gallery/story12.json'
 import story13 from '@/utils/json/Gallery/story13.json'
+import story14 from '@/utils/json/Gallery/story14.json'
 import bbqmaster from '@/utils/json/Gallery/bbqmaster.json'
 import voltroad from '@/utils/json/Gallery/voltroad.json'
 import bluewaterisland from '@/utils/json/Gallery/bluewaterisland.json'
@@ -189,6 +190,7 @@ import side02 from '@/utils/json/Gallery/side02.json'
 import side03 from '@/utils/json/Gallery/side03.json'
 import side04 from '@/utils/json/Gallery/side04.json'
 import side05 from '@/utils/json/Gallery/side05.json'
+import side06 from '@/utils/json/Gallery/side06.json'
 import lastkingdom from '@/utils/json/Gallery/lastkingdom.json'
 import darkhero from '@/utils/json/Gallery/darkhero.json'
 import goldencoinrush from '@/utils/json/Gallery/goldencoinrush.json'
@@ -234,6 +236,7 @@ import projectmatis from '@/utils/json/Gallery/projectmatis.json'
 import personaonfrontline from '@/utils/json/Gallery/personaonfrontline.json'
 import greatvillainunion from '@/utils/json/Gallery/greatvillainunion.json'
 import coinrushshowdown from '@/utils/json/Gallery/coinrushshowdown.json'
+import littlewitchtrick from '@/utils/json/Gallery/littlewitchtrick.json'
 
 
 const market = useMarket()
@@ -260,7 +263,8 @@ const buttonListStory = [
   { data: story10 },
   { data: story11 },
   { data: story12 },
-  { data: story13 }
+  { data: story13 },
+  { data: story14 }
 ] as buttonInterface[]
 
 const buttonListSideStory = [
@@ -268,7 +272,8 @@ const buttonListSideStory = [
   { data: side02 },
   { data: side03 },
   { data: side04 },
-  { data: side05 }
+  { data: side05 },
+  { data: side06 }
 ] as buttonInterface[]
 
 const buttonListEvents = [
@@ -329,7 +334,8 @@ const buttonListEvents = [
   { data: projectmatis },
   { data: personaonfrontline },
   { data: greatvillainunion },
-  { data: coinrushshowdown }
+  { data: coinrushshowdown },
+  { data: littlewitchtrick }
 ] as buttonInterface[]
 
 const buttonListOther = [
