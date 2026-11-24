@@ -56,6 +56,55 @@
         { "original": "think_02", "replaced": "think_with_combatarmor" },
         { "original": "worry_02", "replaced": "worry_with_combatarmor" }
       ]
+    },
+    {
+      "ids": ["c315"],
+      "name": "Ade: Agent Bunny",
+      "overrides": [
+        { "original": "special", "replaced": "panicked" }
+      ]
+    },
+    {
+      "ids": ["c351", "c351_01"],
+      "name": "Anchor",
+      "overrides": [
+        { "original": "special", "replaced": "starfish_on_her_face" }
+      ]
+    },
+    {
+      "ids": ["c355"],
+      "name": "Anchor: Innocent Maid",
+      "overrides": [
+        { "original": "special", "replaced": "starfish_on_her_face" }
+      ]
+    },
+    {
+      "ids": ["c283"],
+      "name": "Rosanna: Chic Ocean",
+      "overrides": [
+        { "original": "special", "replaced": "curt" }
+      ]
+    },
+    {
+      "ids": ["c471", "c471_01"],
+      "name": "Snow White: Heavy Arms",
+      "overrides": [
+        { "original": "special", "replaced": "hungry" }
+      ]
+    },
+    {
+      "ids": ["c382", "c382_01"],
+      "name": "Leona",
+      "overrides": [
+        { "original": "special", "replaced": "confused" }
+      ]
+    },
+    {
+      "ids": ["c352", "c352_01", "c352_02"],
+      "name": "Helm",
+      "overrides": [
+        { "original": "special", "replaced": "starfish_on_her_face" }
+      ]
     }
   ]
 }
