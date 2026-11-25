@@ -357,7 +357,9 @@
       "Milk": "A Cafe Sweety cook. Chisato helps during the customer rush, and when supplies run low, Milk orders Sugar to restock. Chisato volunteers instead. Chisato and Sugar later remember they must buy ingredients before Milk throws a fit.",
       "Frima": "A Cafe Sweety staff member in charge of transactions. Chisato works alongside her during the cafe's busy period.",
       "Kurumi": "Mentioned as someone Chisato wants to gloat to about the clothes the commander gifts her."
-    }
+    },
+    "id": "c860",
+    "color": "#c13b3d"
   },
   "Cinderella": {
     "appearance": "white twintails, red eyes, pale skin, voluptuous",
@@ -571,7 +573,9 @@
       "Underworld Queens": "Friends and allies who staked their organizations to assure Outer Rim place in Ark, tried to stop her suicidal bomb plan.",
       "Commander (Protagonist)": "Positive bond; assists in Outer Rim deeds, distracts for squad surprise, forms pact to support her dreams as a guiding light.",
       "Sixo": "Antagonist; interrogated over E2 Crystals and Mist plot, rejected offer to become Ark's 'master', opposed her terrorist plans."
-    }
+    },
+    "id": "c113",
+    "color": "#db3758"
   },
   "Ein": {
     "appearance": "Long blonde hair, pink eyes, fair skin, black choker",
@@ -691,7 +695,9 @@
       "Hammering": "Contacts Flora during Chapter 27 while Flora is in the crystal region; Flora provides insight about energy-draining minerals using plant knowledge.",
       "Happy Zoo": "Flora seeks their aid in the Secret Garden event to track a rare flower and later prepares for the Spring Festa with them.",
       "Botanic Garden Squad": "Flora is a member; she works with them tending plants and arranging flowers. She is close enough to want to help Trina."
-    }
+    },
+    "id": "c411",
+    "color": "#ab95d9"
   },
   "Frima": {
     "appearance": "Gray eyes, long silver hair",
@@ -1425,7 +1431,9 @@
       "Privaty": "Triangle ace who recognizes Makoto and eagerly asks about the protagonist's comments on Triangle.",
       "Leona": "Lion keeper who pursues Morgana as a stray cat, causing Makoto to flee; not hostile, but a source of panic.",
       "Phantom Thieves of Hearts": "Her team; she joined after her Persona awakening and works with them in the Ark to track down the Gentle Businessman."
-    }
+    },
+    "id": "c870",
+    "color": "#2c3997"
   },
   "Quency": {
     "appearance": "red eyes, long black hair with pink highlights, large bust, barefoot",
@@ -1660,7 +1668,9 @@
     "relationships": {
       "Commander (Protagonist)": "Cherished and treated like a child with deep motherly affection; makes treats for his exhaustion, goes on a dessert date, holds hands, pats his head, tucks him in, kisses his forehead, misses him greatly, and leaves gifts to show care.",
       "Crust": "Finds her adorable, eager to meet and learn baking from her to dispel health doubts about sweets, pats her head, assists in kitchen mishaps, and plans to apologize for abrupt departure."
-    }
+    },
+    "id": "c620",
+    "color": "#0050d7"
   },
   "Snow White": {
     "appearance": "White hair, amber eyes, pale skin, stoic expression",
@@ -1779,7 +1789,9 @@
       "Chisato Nishikigi": "Takina harbors dissatisfaction toward Chisato because Chisato does not behave like a Lycoris, contrasting with Takina's realistic and efficiency-focused nature.",
       "Sugar": "Sugar is a Cafe Sweety coworker. She and Frima are surprised Milk surpassed them financially, then try the pancake, like it, and inadvertently help Takina realize its suggestive appearance.",
       "Frima": "Frima is a Cafe Sweety coworker. She and Sugar comment on the pancake's appearance and enjoy its taste, leading Takina to realize what she created."
-    }
+    },
+    "id": "c861",
+    "color": "#667398"
   },
   "Tia": {
     "appearance": "Long blonde hair, reddish-pink eyes, pale skin, curvaceous figure, blue hair accessory",
@@ -1928,7 +1940,9 @@
       "Chie Satonaka": "Yukiko's friend from her home world. Yukiko mentions wanting to find a similar outfit for their next pajama party and hopes to tell Chie about her dimensional trip.",
       "Phantom Thieves": "Allies Yukiko joins forces with after the D-Wave outbreak to track down a Gentle Businessman.",
       "Gentle Businessman": "A target Yukiko and the Phantom Thieves track down following the D-Wave outbreak."
-    }
+    },
+    "id": "c871",
+    "color": "#e01e1a"
   },
   "Yulha": {
     "appearance": "Silver wavy hair, red eyes, pale skin",

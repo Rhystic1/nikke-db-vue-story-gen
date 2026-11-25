@@ -223,7 +223,9 @@
       "Theater Manager": "The manager of the theater Drake rents for her villain debut. She admires Drake as a hero, offers the venue and services, and respects Drake's insistence on fair payment.",
       "Charity Ambassador": "Mistaken by Drake as her first follower after the accidental fundraiser. Drake plans to meet them and instill the core values of the Villain Union, though the meeting is actually to handle fundraiser results.",
       "Annihilio": "An enemy Heretic whose biochemical weapons threaten the Ark. Drake and Matis are deployed to intercept her and the accompanying Raptures during the Ark Ranger event."
-    }
+    },
+    "id": "c104",
+    "color": "#ed4652"
   },
   "Elegg: Boom and Shock": {
     "appearance": "Short blonde bob, bangs covering eyes, fair skin, curvy physique, thigh tattoo ('BOOM')",
@@ -370,6 +372,7 @@
     "relationships": {
       "Commander (Protagonist)": "Marian's central relationship in the supplied content is with the protagonist/Commander. She misses him while in the Dark Matter Moon and recalls their past together. As Marian, she is devoted and protective, prioritizing his safety and scolding him for taking risks, while also admitting she would take the fall for him. Their dynamic is mutually protective and affectionate: he promises to be more careful, suggests holding hands and facing risks together, and she teases him about wanting to hold her hand. She wants to share bucket-list experiences and memories with him, and she fears losing their shared happiness."
     },
+    "id": "c019",
     "color": "#342443"
   },
   "Mary: Bay Goddess": {
