@@ -40,7 +40,8 @@
       "ids": ["c331"],
       "name": "Chime",
       "overrides": [
-        { "original": "special", "replaced": "satisfied" }
+        { "original": "special", "replaced": "satisfied" },
+        { "original": "void", "replaced": "void_or_thinking" }
       ]
     },
     {

@@ -173,7 +173,7 @@ const zaiRow = {
 
 const localRow = {
   id: 'local' as const,
-  label: 'Local (OpenAI-compatible API)',
+  label: 'Custom/Local (OpenAI-compatible API)',
   reasoning: 'chat',
   refetchOnKeyChange: true,
   emptyCatalog: 'quiet',
