@@ -1,6 +1,7 @@
 import l2d from '@/utils/json/l2d.json'
 import filteredIdsJson from '@/utils/json/filteredCharacterIds.json'
 import skinOverridesJson from '@/utils/json/skinOverrides.json'
+import { getStoryCharacterAliasDisplayName, isTalosAlias, TALOS_CHARACTER_ID } from '@/utils/characterLookupUtils'
 
 export type StoryCharacterSource = 'user' | 'ai'
 
@@ -361,6 +362,10 @@ export const resolveCharacterIdFromInput = (input: string, roster: StoryCharacte
   const trimmed = input.trim()
   if (!trimmed) return null
 
+  if (trimmed.toLowerCase() === TALOS_CHARACTER_ID || isTalosAlias(trimmed)) {
+    return TALOS_CHARACTER_ID
+  }
+
   // Check if input is a valid ID in the catalog
   const inputName = catalog.idToName[trimmed]
 
@@ -473,8 +478,13 @@ export const getCharacterDisplayName = (id: string, currentLive2dId: string, ros
   if (id === 'current') return getCharacterDisplayName(currentLive2dId, currentLive2dId, rosterRows, catalog)
   if (id.toLowerCase() === 'commander') return 'Commander'
 
+  const aliasDisplayName = getStoryCharacterAliasDisplayName(id)
+  if (aliasDisplayName) return aliasDisplayName
+
   const rosterMatch = resolveCharacterIdFromInput(id, rosterRows, catalog)
   if (rosterMatch) {
+    const matchedAliasName = getStoryCharacterAliasDisplayName(rosterMatch)
+    if (matchedAliasName) return matchedAliasName
     const rosterName = catalog.idToName[rosterMatch]
     if (rosterName) return rosterName
   }

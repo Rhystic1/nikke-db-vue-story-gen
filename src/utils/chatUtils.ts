@@ -5,7 +5,7 @@ import prompts from '@/utils/json/prompts.json'
 import { parseSelectionValue, type StoryCharacterEntry, type CharacterCatalog } from '@/utils/storyCharacterUtils'
 import { getBackgroundPromptScenes, getCurrentBackgroundPromptState } from '@/utils/backgroundUtils'
 import { resolveRelevantLocations, getFilteredLocationsForAI } from '@/utils/storyLocationUtils'
-import { findCharacterByName, findCharacterIdByName, findCharacterByIdOrName, hasMeaningfulAnimation, NON_DUPLICATED_FIELDS, getHonorific } from '@/utils/characterLookupUtils'
+import { findCharacterByName, findCharacterIdByName, findCharacterByIdOrName, findLeadingCharacterId, getStoryCharacterAliasDisplayName, hasMeaningfulAnimation, KILO_CHARACTER_ID, NON_DUPLICATED_FIELDS, getHonorific, TALOS_CHARACTER_ID, TALOS_DISPLAY_NAME } from '@/utils/characterLookupUtils'
 import { resolveAiBackgroundSelection } from '@/utils/storyBackgroundUtils'
 
 // Re-exports from extracted modules
@@ -466,29 +466,7 @@ export const sanitizeActions = (actions: any[]): any[] => {
   }
 
   const resolveCharacterIdFromLeadingName = (rawText: string): string | undefined => {
-    const t = (rawText || '').replace(/\u00A0/g, ' ').trimStart()
-    if (!t) return undefined
-
-    if (t.toLowerCase().startsWith('commander')) {
-      const after = t.slice('commander'.length)
-      const next = after.charAt(0)
-      if (!next || /[\s,.:;!?\-—–'']/.test(next)) return 'commander'
-    }
-
-    for (const char of l2d as any[]) {
-      const name = typeof char?.name === 'string' ? (char.name as string) : ''
-      const id = typeof char?.id === 'string' ? (char.id as string) : ''
-      if (!name || !id) continue
-
-      const nameLower = name.toLowerCase()
-      if (!t.toLowerCase().startsWith(nameLower)) continue
-
-      const after = t.slice(name.length)
-      const next = after.charAt(0)
-      if (!next || /[\s,.:;!?\-—–'']/.test(next)) return id
-    }
-
-    return undefined
+    return findLeadingCharacterId(rawText, /[\s,.:;!?\-—–'’]/)
   }
 
   const splitActionOnDoubleNewlines = (action: any): any[] => {
@@ -941,27 +919,14 @@ export const splitNarration = (text: string): any[] => {
   const paragraphs = text.split(/\n\n+/).filter((p) => p.trim())
 
   for (const paragraph of paragraphs) {
-    const sentences = paragraph.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g)
+    const sentences = paragraph.match(/(?:(?:[A-Za-z]\.){2,}|[^.!?])+(?:[.!?]+["']?|$)/g)
 
     if (!sentences) {
       const trimmed = paragraph.trim()
 
       if (!trimmed) continue
 
-      let foundCharId = null
-      for (const char of l2d) {
-        const name = char.name
-
-        if (trimmed.toLowerCase().startsWith(name.toLowerCase())) {
-          const nextChar = trimmed.charAt(name.length)
-
-          if (!nextChar || /[\s'’.,!?]/.test(nextChar)) {
-            foundCharId = char.id
-
-            break
-          }
-        }
-      }
+      const foundCharId = findLeadingCharacterId(trimmed, /[\s'’.,!?]/) || null
       if (foundCharId) {
         actions.push({
           text: trimmed,
@@ -987,20 +952,7 @@ export const splitNarration = (text: string): any[] => {
 
       if (!sentence) continue
 
-      let foundCharId = null
-
-      for (const char of l2d) {
-        const name = char.name
-        if (sentence.toLowerCase().startsWith(name.toLowerCase())) {
-          const nextChar = sentence.charAt(name.length)
-
-          if (!nextChar || /[\s'’.,!?]/.test(nextChar)) {
-            foundCharId = char.id
-
-            break
-          }
-        }
-      }
+      const foundCharId = findLeadingCharacterId(sentence, /[\s'’.,!?]/) || null
 
       if (foundCharId) {
         if (currentAction) {
@@ -1508,6 +1460,8 @@ export const generateSystemPrompt = (params: SystemPromptParams): StoryPromptPar
   const relevantCharacterIds: string[] = []
   const relevantCharacterNames: string[] = []
 
+  const hasCharacterId = (id: string) => relevantCharacterIds.some((entry) => entry.endsWith(` = ${id}`))
+
   for (const name of knownCharacterNames) {
     // Skip base character profiles that are loaded purely for context
     // (because a variant is the active character).  Prevents the AI
@@ -1523,20 +1477,21 @@ export const generateSystemPrompt = (params: SystemPromptParams): StoryPromptPar
     }
 
     if (name.toLowerCase() === 'commander') {
-      if (!relevantCharacterIds.some((r) => r.includes('= commander'))) {
+      if (!hasCharacterId('commander')) {
         relevantCharacterIds.push('Commander = commander')
         relevantCharacterNames.push('Commander')
       }
       continue
     }
 
-    const matchingChars = (l2d as any[]).filter((c) => c.name.toLowerCase() === name.toLowerCase())
-    if (matchingChars.length === 0) continue
+    const catalogId = characterCatalog.nameToId[name.trim().toLowerCase()]
+    const resolvedChar = catalogId
+      ? { id: catalogId, name: characterCatalog.idToName[catalogId] || name }
+      : findCharacterByName(name)
 
-    const char = matchingChars.sort((a, b) => a.id.localeCompare(b.id))[0]
-    if (char && !relevantCharacterIds.some((r) => r.includes(char.id))) {
-      relevantCharacterIds.push(`${char.name} = ${char.id}`)
-      relevantCharacterNames.push(char.name)
+    if (resolvedChar && !hasCharacterId(resolvedChar.id)) {
+      relevantCharacterIds.push(`${resolvedChar.name} = ${resolvedChar.id}`)
+      relevantCharacterNames.push(resolvedChar.name)
     }
   }
 
@@ -1546,20 +1501,30 @@ export const generateSystemPrompt = (params: SystemPromptParams): StoryPromptPar
 
     if (selection.type === 'base') {
       const baseEntry = characterCatalog.baseMap[selection.baseName]
-      if (baseEntry && !relevantCharacterIds.some((r) => r.includes(baseEntry.baseId))) {
+      if (baseEntry && !hasCharacterId(baseEntry.baseId)) {
         relevantCharacterIds.push(`${selection.baseName} = ${baseEntry.baseId}`)
         relevantCharacterNames.push(selection.baseName)
       }
     } else if (selection.type === 'variant') {
       const variantName = characterCatalog.idToName[selection.variantId]
       if (variantName && variantName.includes(':')) {
-        if (!relevantCharacterIds.some((r) => r.includes(selection.variantId))) {
+        if (!hasCharacterId(selection.variantId)) {
           relevantCharacterIds.push(`${variantName} = ${selection.variantId}`)
           relevantCharacterNames.push(variantName)
         }
       }
     }
   }
+
+  const hasKiloInCast = hasCharacterId(KILO_CHARACTER_ID)
+  if (hasKiloInCast && !hasCharacterId(TALOS_CHARACTER_ID)) {
+    relevantCharacterIds.push(`${TALOS_DISPLAY_NAME} = ${TALOS_CHARACTER_ID}`)
+    relevantCharacterNames.push(TALOS_DISPLAY_NAME)
+  }
+
+  const kiloTalosGuidance = hasKiloInCast
+    ? `\n- KILO & T.A.L.O.S.: Default to displaying Kilo (${KILO_CHARACTER_ID}) whenever Kilo is speaking, acting, or the focus of the scene. Switch to ${TALOS_DISPLAY_NAME} (${TALOS_CHARACTER_ID}) ONLY when ${TALOS_DISPLAY_NAME} itself is actively speaking or performing an action, then switch back to Kilo (${KILO_CHARACTER_ID}) when focus returns to Kilo.`
+    : ''
 
   const relevantHonorifics: Record<string, string> = {}
   for (const name of relevantCharacterNames) {
@@ -1572,11 +1537,12 @@ export const generateSystemPrompt = (params: SystemPromptParams): StoryPromptPar
     : undefined
   const currentCharacterTurnBlocks: string[] = []
   if (currentLive2dCharacter) {
-    const idLine = `${currentLive2dCharacter.name} = ${currentLive2dCharacter.id}`
-    const idListed = relevantCharacterIds.some((entry) => entry.endsWith(` = ${currentLive2dCharacter.id}`))
-    const honorificListed = Object.prototype.hasOwnProperty.call(relevantHonorifics, currentLive2dCharacter.name)
+    const currentDisplayName = getStoryCharacterAliasDisplayName(currentLive2dCharacter.id) || currentLive2dCharacter.name
+    const idLine = `${currentDisplayName} = ${currentLive2dCharacter.id}`
+    const idListed = hasCharacterId(currentLive2dCharacter.id)
+    const honorificListed = Object.prototype.hasOwnProperty.call(relevantHonorifics, currentDisplayName)
     if (!honorificListed) {
-      currentCharacterTurnBlocks.push(`  ${prompts.systemPrompt.honorifics.header}\n  ${JSON.stringify({ [currentLive2dCharacter.name]: getHonorific(currentLive2dCharacter.name) }, null, 2)}`)
+      currentCharacterTurnBlocks.push(`  ${prompts.systemPrompt.honorifics.header}\n  ${JSON.stringify({ [currentDisplayName]: getHonorific(currentDisplayName) }, null, 2)}`)
     }
     if (!idListed) {
       currentCharacterTurnBlocks.push(`  ${prompts.systemPrompt.idReference}\n  ${idLine}`)
@@ -1696,7 +1662,7 @@ ${currentBackground ? JSON.stringify(currentBackground, null, 2) : 'none'}`
   ${jsonStructure}
   ${debugAnimReasonInstruction}
 
-  ${prompts.systemPrompt.instructions.base}
+  ${prompts.systemPrompt.instructions.base}${kiloTalosGuidance}
   ${modeInstructions}
   ${prompts.systemPrompt.instructions.closing}
   ${backgroundStable}

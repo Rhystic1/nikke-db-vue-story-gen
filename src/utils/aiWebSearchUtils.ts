@@ -1,9 +1,9 @@
 import { ref } from 'vue'
-import l2d from '@/utils/json/l2d.json'
 import localCharacterProfiles from '@/utils/json/characterProfiles.json'
 import variantCharacterProfiles from '@/utils/json/characterProfilesVariants.json'
 import prompts from '@/utils/json/prompts.json'
 import { cleanWikiContent, parseAIResponse, isWholeWordPresent } from '@/utils/chatUtils'
+import { findCharacterByName, isTalosAlias } from '@/utils/characterLookupUtils'
 import { getSelectionForName, parseSelectionValue, type CharacterCatalog } from '@/utils/storyCharacterUtils'
 import { characterSearchMode, type ChatMessage, type StoryProviderId } from '@/utils/storyProviders'
 
@@ -100,7 +100,7 @@ const searchForCharactersViaWikiFetch = async (characterNames: string[], charact
 
         // Add character IDs and colors
         for (const charName of Object.keys(profiles)) {
-          const char = l2d.find((c) => c.name.toLowerCase() === charName.toLowerCase())
+          const char = findCharacterByName(charName)
           if (char) {
             profiles[charName].id = char.id
           }
@@ -167,7 +167,7 @@ const searchForCharactersWithNativeSearch = async (characterNames: string[], cha
 
         // Add character IDs and colors
         for (const charName of Object.keys(profiles)) {
-          const char = l2d.find((c) => c.name.toLowerCase() === charName.toLowerCase())
+          const char = findCharacterByName(charName)
           if (char) {
             profiles[charName].id = char.id
           }
@@ -219,7 +219,7 @@ export const searchForCharacters = async (characterNames: string[], characterPro
       characterProfiles[name] = {
         ...profile,
         // Ensure ID is present (it is in the JSON, but fallback to l2d list just in case)
-        id: profile.id || l2d.find((c) => c.name.toLowerCase() === name.toLowerCase())?.id
+        id: profile.id || findCharacterByName(name)?.id
       }
       logDebug(`[searchForCharacters] Found local profile for ${name}`)
 
@@ -323,7 +323,7 @@ export const checkForSearchRequest = async (response: string, userPrompt: string
     const unique = Array.from(new Set(names.map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean)))
     return unique.filter((name) => {
       // Check against reactive profiles (already loaded) AND static profile list
-      const isKnown = params.characterProfiles[name] || knownBaseNames.has(name.toLowerCase()) || name.toLowerCase() === 'commander'
+      const isKnown = params.characterProfiles[name] || knownBaseNames.has(name.toLowerCase()) || name.toLowerCase() === 'commander' || (isTalosAlias(name) && knownBaseNames.has('kilo'))
       if (isKnown) return false
 
       // Check if it's a skin/variant of a known character

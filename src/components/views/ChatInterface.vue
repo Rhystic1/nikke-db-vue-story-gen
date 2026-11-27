@@ -1024,14 +1024,13 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { useMarket } from '@/stores/market'
 import { Settings, Help, Save, Upload, TrashCan, Reset, Renew, Draggable, Maximize, TextScale, Bookmark, Document, OverflowMenuHorizontal, Send, Stop, Play, Close, ChevronRight } from '@vicons/carbon'
 import { NIcon, NButton, NInput, NDrawer, NDrawerContent, NForm, NFormItem, NSelect, NSwitch, NPopover, NAlert, NSpin, NCheckbox, NTag, NModal, NPopconfirm } from 'naive-ui'
-import l2d from '@/utils/json/l2d.json'
 import localCharacterProfiles from '@/utils/json/characterProfiles.json'
 import variantCharacterProfiles from '@/utils/json/characterProfilesVariants.json'
 import backgroundImagesList from '@/utils/json/backgroundImages.json'
 import loadingMessages from '@/utils/json/loadingMessages.json'
 import prompts from '@/utils/json/prompts.json'
 import { marked } from 'marked'
-import { sanitizeActions, parseFallback, parseAIResponse, isWholeWordPresent, formatChoiceAsUserTurn, filterEchoedUserChoiceDialogueInGameMode, stripChoicesWhenNotGameMode, ensureGameModeChoicesFallback, calculateYapDuration, replayMessage as replayMessageUtil, getHonorific, createTypewriterController, getEffectiveCharacterProfiles, logDebug, generateSystemPrompt as generateSystemPromptUtil, injectAnimReasonIntoJsonTemplate } from '@/utils/chatUtils'
+import { sanitizeActions, parseFallback, parseAIResponse, isWholeWordPresent, formatChoiceAsUserTurn, filterEchoedUserChoiceDialogueInGameMode, stripChoicesWhenNotGameMode, ensureGameModeChoicesFallback, calculateYapDuration, replayMessage as replayMessageUtil, getHonorific, createTypewriterController, getEffectiveCharacterProfiles, logDebug, generateSystemPrompt as generateSystemPromptUtil, injectAnimReasonIntoJsonTemplate, findCharacterByName, findCharacterIdByName, findCharacterByIdOrName } from '@/utils/chatUtils'
 import { executeAiTurn } from '@/utils/chatRetryUtils'
 import { attachStorySummary, attachTurnContext, buildFirstTurnHonorificsReminder, injectFirstTurnReminder } from '@/utils/chatAiCaller'
 import { useStoryReminders } from '@/composables/useStoryReminders'
@@ -3356,7 +3355,7 @@ const processMemoryBlock = (memory: Record<string, any>) => {
       const localProfile = variantKey ? (variantCharacterProfiles as any)[resolvedKey] : (localCharacterProfiles as any)[resolvedKey]
       newProfiles[charName] = {
         ...localProfile,
-        id: localProfile.id || l2d.find((c) => c.name.toLowerCase() === charName.toLowerCase())?.id
+        id: localProfile.id || findCharacterIdByName(charName)
       }
 
       if (variantKey && charName.includes(':')) {
@@ -3386,7 +3385,7 @@ const processMemoryBlock = (memory: Record<string, any>) => {
         cleanedProfile.relationships = Object.keys(relationships).length > 0 ? relationships : undefined
       }
 
-      const char = l2d.find((c) => c.name.toLowerCase() === charName.toLowerCase())
+      const char = findCharacterByName(charName)
       if (char) cleanedProfile.id = char.id
 
       const localColorKey = Object.keys(localCharacterProfiles).find((k) => k.toLowerCase() === charName.toLowerCase())
@@ -3449,7 +3448,7 @@ const resolveEffectiveCharId = (data: any): string => {
     const speakerMatch = data.text ? data.text.match(/^\s*(?:\*\*)?([^*]+?)(?:\*\*)?\s*:\s*/) : null
     if (speakerMatch) {
       const speakerName = speakerMatch[1].trim()
-      const charObj = l2d.find((c) => c.name.toLowerCase() === speakerName.toLowerCase())
+      const charObj = findCharacterByName(speakerName)
       if (charObj && charObj.id !== market.live2d.current_id) {
         logDebug(`[Chat] Detected speaker '${speakerName}' in text. Switching from 'current' to: ${charObj.id}`)
         effectiveCharId = charObj.id
@@ -3545,7 +3544,7 @@ const buildCharacterUpdatePromise = async (data: any, effectiveCharId: string): 
     return effectiveCharId
   }
 
-  const charObj = l2d.find((c) => c.id.toLowerCase() === data.character.toLowerCase() || c.name.toLowerCase() === data.character.toLowerCase())
+  const charObj = findCharacterByIdOrName(data.character)
   if (!charObj) {
     console.warn(`[Chat] Character not found: ${data.character}`)
     return effectiveCharId
