@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { listStoryModels, modelAfterRefresh, parseStoryProviderId, parseZaiKeyPlan, runStoryProvider, storyProviderOptions } from '@/utils/storyProviders'
+import { listStoryModels, modelAfterRefresh, parseStoryProviderId, parseZaiKeyPlan, restoredModel, runStoryProvider, storyProviderOptions } from '@/utils/storyProviders'
 import { modelsWithoutJsonSupport, modelsWithoutReasoningSupport } from '@/utils/providerConfigUtils'
 
 const catalog = {
@@ -420,5 +420,263 @@ describe('Z.AI provider', () => {
 
   it('rejects native search', async () => {
     await expect(runStoryProvider('zai', 'native', storyRun('glm-5.3', 'default'))).rejects.toThrow('Native search is not available for this provider')
+  })
+})
+
+describe('Local provider', () => {
+  afterEach(() => {
+    requests = []
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    sessionStorage.removeItem('modelsWithoutJsonSupport')
+    sessionStorage.removeItem('modelsWithoutReasoningSupport')
+    modelsWithoutJsonSupport.value = new Set()
+    modelsWithoutReasoningSupport.value = new Set()
+  })
+
+  const localStoryRun = (apiKey: string, model?: string, reasoningEffort?: string) => {
+    return {
+      messages: [{ role: 'user', content: 'hi' }],
+      apiKey,
+      model,
+      modeIsGame: false,
+      reasoningEffort,
+      localUrl: 'http://localhost:5001/v1'
+    }
+  }
+
+  it('omits Authorization header when apiKey is empty or whitespace', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    const textEmpty = await runStoryProvider('local', 'story', localStoryRun(''))
+    const textSpaces = await runStoryProvider('local', 'story', localStoryRun('   '))
+
+    expect(textEmpty).toBe('ok')
+    expect(textSpaces).toBe('ok')
+    expect(requests).toHaveLength(2)
+    expect(requests[0].headers.Authorization).toBeUndefined()
+    expect(requests[1].headers.Authorization).toBeUndefined()
+  })
+
+  it('sends trimmed Bearer Authorization header when apiKey is provided', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    const text = await runStoryProvider('local', 'story', localStoryRun('  local-secret  '))
+
+    expect(text).toBe('ok')
+    expect(requests).toHaveLength(1)
+    expect(requests[0].url).toBe('http://localhost:5001/v1/chat/completions')
+    expect(requests[0].headers.Authorization).toBe('Bearer local-secret')
+  })
+
+  it('keeps trimmed Bearer Authorization header on no-response_format retry', async () => {
+    stubFetch((request) => {
+      if (request.body?.response_format) {
+        return jsonResponse(400, { error: { message: 'response_format is not supported' } })
+      }
+
+      return jsonResponse(200, { choices: [{ message: { content: 'plain' } }] })
+    })
+
+    const text = await runStoryProvider('local', 'story', localStoryRun('  local-secret  ', 'local-model'))
+
+    expect(text).toBe('plain')
+    expect(requests).toHaveLength(2)
+    expect(requests[0].headers.Authorization).toBe('Bearer local-secret')
+    expect(requests[1].body.response_format).toBeUndefined()
+    expect(requests[1].headers.Authorization).toBe('Bearer local-secret')
+  })
+
+  it('handles optional apiKey for summarize', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'sum' } }] }))
+
+    const textBlank = await runStoryProvider('local', 'summarize', localStoryRun('   '))
+    const textWithKey = await runStoryProvider('local', 'summarize', localStoryRun('  local-secret  '))
+
+    expect(textBlank).toBe('sum')
+    expect(textWithKey).toBe('sum')
+    expect(requests).toHaveLength(2)
+    expect(requests[0].headers.Authorization).toBeUndefined()
+    expect(requests[1].headers.Authorization).toBe('Bearer local-secret')
+  })
+
+  it('fetches, deduplicates, and sorts OpenAI models from /models across local URL formats', async () => {
+    stubFetch(() =>
+      jsonResponse(200, {
+        object: 'list',
+        data: [
+          { id: 'qwen2.5-14b' },
+          { id: '  llama-3.1-8b  ' },
+          { id: 'qwen2.5-14b' },
+          { id: '' },
+          { id: 123 }
+        ]
+      })
+    )
+
+    const listedBase = await listStoryModels('local', '  local-secret  ', { localUrl: 'http://localhost:5001/v1' })
+    const listedSlash = await listStoryModels('local', undefined, { localUrl: 'http://localhost:5001/v1/' })
+    const listedChat = await listStoryModels('local', '   ', { localUrl: 'http://localhost:5001/v1/chat/completions' })
+
+    const expectedChoices = [
+      { label: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+      { label: 'qwen2.5-14b', value: 'qwen2.5-14b' }
+    ]
+    expect(listedBase).toEqual({ ok: true, choices: expectedChoices })
+    expect(listedSlash).toEqual({ ok: true, choices: expectedChoices })
+    expect(listedChat).toEqual({ ok: true, choices: expectedChoices })
+
+    expect(requests).toHaveLength(3)
+    expect(requests[0].url).toBe('http://localhost:5001/v1/models')
+    expect(requests[0].headers.Authorization).toBe('Bearer local-secret')
+    expect(requests[0].headers['Content-Type']).toBeUndefined()
+    expect(requests[1].url).toBe('http://localhost:5001/v1/models')
+    expect(requests[1].headers.Authorization).toBeUndefined()
+    expect(requests[2].url).toBe('http://localhost:5001/v1/models')
+    expect(requests[2].headers.Authorization).toBeUndefined()
+  })
+
+  it('returns ok false when local /models cannot be fetched or is malformed', async () => {
+    expect(await listStoryModels('local', undefined)).toEqual({ ok: false })
+    expect(await listStoryModels('local', undefined, { localUrl: '   ' })).toEqual({ ok: false })
+    expect(requests).toHaveLength(0)
+
+    stubFetch(() => jsonResponse(404, { error: { message: 'not found' } }))
+    expect(await listStoryModels('local', undefined, { localUrl: 'http://localhost:5001/v1' })).toEqual({ ok: false })
+
+    stubFetch(() => jsonResponse(200, { models: ['nope'] }))
+    expect(await listStoryModels('local', undefined, { localUrl: 'http://localhost:5001/v1' })).toEqual({ ok: false })
+
+    stubFetch(() => {
+      throw new Error('ECONNREFUSED')
+    })
+    expect(await listStoryModels('local', undefined, { localUrl: 'http://localhost:5001/v1' })).toEqual({ ok: false })
+  })
+
+  it('preserves custom local model IDs and defaults to first listed model when empty', () => {
+    const catalogChoices = [
+      { label: 'llama-3.1-8b', value: 'llama-3.1-8b' },
+      { label: 'qwen2.5-14b', value: 'qwen2.5-14b' }
+    ]
+
+    expect(restoredModel('local', '  my-custom-gguf  ', [])).toEqual({ model: 'my-custom-gguf' })
+    expect(restoredModel('local', 'my-custom-gguf', catalogChoices)).toEqual({ model: 'my-custom-gguf' })
+    expect(restoredModel('local', '', catalogChoices)).toEqual({ model: 'llama-3.1-8b' })
+
+    expect(modelAfterRefresh('local', 'my-custom-gguf', [])).toBe('my-custom-gguf')
+    expect(modelAfterRefresh('local', 'my-custom-gguf', catalogChoices)).toBe('my-custom-gguf')
+    expect(modelAfterRefresh('local', '   ', catalogChoices)).toBe('llama-3.1-8b')
+    expect(modelAfterRefresh('local', '', [])).toBe('')
+  })
+
+  it('sends trimmed model in local story and summarize requests and omits blank models', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('local', 'story', localStoryRun('', '  local-model  '))
+    await runStoryProvider('local', 'summarize', localStoryRun('', '  local-model  '))
+    await runStoryProvider('local', 'story', localStoryRun('', '   '))
+    await runStoryProvider('local', 'summarize', localStoryRun('', undefined))
+
+    expect(requests).toHaveLength(4)
+    expect(requests[0].body.model).toBe('local-model')
+    expect(requests[1].body.model).toBe('local-model')
+    expect(requests[2].body.model).toBeUndefined()
+    expect(requests[3].body.model).toBeUndefined()
+  })
+
+  it('sends OpenAI reasoning_effort instead of reasoning object for local story and summarize', async () => {
+    stubFetch(() => jsonResponse(200, { choices: [{ message: { content: 'ok' } }] }))
+
+    await runStoryProvider('local', 'story', localStoryRun('', 'mistral-large-latest', 'low'))
+    await runStoryProvider('local', 'summarize', localStoryRun('', 'mistral-large-latest', 'high'))
+    await runStoryProvider('local', 'story', localStoryRun('', 'mistral-large-latest', 'default'))
+
+    expect(requests).toHaveLength(3)
+    expect(requests[0].body.reasoning_effort).toBe('low')
+    expect(requests[0].body.reasoning).toBeUndefined()
+    expect(requests[1].body.reasoning_effort).toBe('high')
+    expect(requests[1].body.reasoning).toBeUndefined()
+    expect(requests[2].body.reasoning_effort).toBeUndefined()
+    expect(requests[2].body.reasoning).toBeUndefined()
+  })
+
+  it('retries without reasoning_effort on 422 rejection and remembers the model', async () => {
+    stubFetch((request) => {
+      if (request.body?.reasoning_effort) {
+        return jsonResponse(422, {
+          object: 'error',
+          message: {
+            detail: [
+              {
+                type: 'extra_forbidden',
+                loc: ['body', 'reasoning_effort'],
+                msg: 'Extra inputs are not permitted'
+              }
+            ]
+          }
+        })
+      }
+
+      return jsonResponse(200, { choices: [{ message: { content: 'ok' } }] })
+    })
+
+    const first = await runStoryProvider('local', 'story', localStoryRun('', 'mistral-small-latest', 'low'))
+    expect(first).toBe('ok')
+    expect(requests).toHaveLength(2)
+    expect(requests[0].body.reasoning_effort).toBe('low')
+    expect(requests[1].body.reasoning_effort).toBeUndefined()
+    expect(requests[1].body.response_format.json_schema.name).toBe('StoryResponse')
+    expect(modelsWithoutReasoningSupport.value.has('mistral-small-latest')).toBe(true)
+
+    requests = []
+    const second = await runStoryProvider('local', 'story', localStoryRun('', 'mistral-small-latest', 'low'))
+    expect(second).toBe('ok')
+    expect(requests).toHaveLength(1)
+    expect(requests[0].body.reasoning_effort).toBeUndefined()
+  })
+
+  it('drops both reasoning_effort and response_format when a single 422 rejects both', async () => {
+    stubFetch((request) => {
+      if (request.body?.reasoning_effort || request.body?.response_format) {
+        return jsonResponse(422, {
+          object: 'error',
+          message: {
+            detail: [
+              { loc: ['body', 'reasoning_effort'], msg: 'Extra inputs are not permitted' },
+              { loc: ['body', 'response_format'], msg: 'Extra inputs are not permitted' }
+            ]
+          }
+        })
+      }
+
+      return jsonResponse(200, { choices: [{ message: { content: [{ type: 'text', text: 'part1' }, { type: 'text', text: 'part2' }] } }] })
+    })
+
+    const text = await runStoryProvider('local', 'story', localStoryRun('', 'strict-local', 'low'))
+    expect(text).toBe('part1part2')
+    expect(requests).toHaveLength(2)
+    expect(requests[1].body.reasoning_effort).toBeUndefined()
+    expect(requests[1].body.response_format).toBeUndefined()
+  })
+
+  it('retries summarize without reasoning_effort on 422 rejection', async () => {
+    stubFetch((request) => {
+      if (request.body?.reasoning_effort) {
+        return jsonResponse(422, {
+          object: 'error',
+          message: {
+            detail: [{ loc: ['body', 'reasoning_effort'], msg: 'Extra inputs are not permitted' }]
+          }
+        })
+      }
+
+      return jsonResponse(200, { choices: [{ message: { content: 'summary' } }] })
+    })
+
+    const summary = await runStoryProvider('local', 'summarize', localStoryRun('', 'mistral-small-latest', 'low'))
+    expect(summary).toBe('summary')
+    expect(requests).toHaveLength(2)
+    expect(requests[0].body.reasoning_effort).toBe('low')
+    expect(requests[1].body.reasoning_effort).toBeUndefined()
   })
 })

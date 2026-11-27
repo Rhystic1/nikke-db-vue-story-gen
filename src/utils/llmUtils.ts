@@ -41,6 +41,31 @@ const buildOpenAiCompatibleRequestBody = (opts: {
   return requestBody
 }
 
+const buildLocalChatRequestBody = (opts: {
+  messages: any[]
+  maxTokens: number
+  model?: string
+  modeIsGame?: boolean
+  reasoningEffort?: string
+  includeJsonSchema?: boolean
+  includeAnimReason?: boolean
+}) => {
+  const requestBody = buildOpenAiCompatibleRequestBody({
+    messages: opts.messages,
+    maxTokens: opts.maxTokens,
+    model: opts.model,
+    modeIsGame: opts.modeIsGame,
+    includeJsonSchema: opts.includeJsonSchema,
+    includeAnimReason: opts.includeAnimReason
+  })
+
+  if (opts.reasoningEffort && opts.reasoningEffort !== 'default') {
+    requestBody.reasoning_effort = opts.reasoningEffort
+  }
+
+  return requestBody
+}
+
 // GLM-5.3 and GLM-5.3-Flash accept reasoning_effort (low | high | max), not an OpenRouter reasoning object.
 // Neither model can disable thinking. The None dropdown value is sent as low.
 // https://docs.z.ai/guides/llm/glm-5.3
@@ -130,22 +155,61 @@ export const buildZaiChatRequestBody = (opts: {
   return requestBody
 }
 
+export const resolveLocalChatCompletionsUrl = (localUrl: string): string => {
+  const trimmed = localUrl.trim().replace(/\/+$/, '')
+  if (!trimmed) {
+    return ''
+  }
+
+  return trimmed.endsWith('/chat/completions') ? trimmed : `${trimmed}/chat/completions`
+}
+
+export const resolveLocalModelsUrl = (localUrl: string): string => {
+  const trimmed = localUrl.trim().replace(/\/+$/, '')
+  if (!trimmed) {
+    return ''
+  }
+  if (trimmed.endsWith('/models')) {
+    return trimmed
+  }
+  if (trimmed.endsWith('/chat/completions')) {
+    return `${trimmed.slice(0, -'/chat/completions'.length)}/models`
+  }
+
+  return `${trimmed}/models`
+}
+
 const getOpenAiCompatibleHeaders = (apiKey?: string) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
   }
 
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`
+  const trimmedKey = apiKey?.trim()
+  if (trimmedKey) {
+    headers['Authorization'] = `Bearer ${trimmedKey}`
   }
 
   return headers
 }
 
+const extractOpenAiErrorMessage = (errorData: any, fallback?: string): string => {
+  const candidates = [errorData?.error?.message, errorData?.message, errorData?.detail]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate
+    }
+    if (candidate && typeof candidate === 'object') {
+      return JSON.stringify(candidate)
+    }
+  }
+
+  return fallback || 'Unknown error'
+}
+
 const parseOpenAiCompatibleTextResponse = async (response: Response, includeReasoning = false) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new AIError(errorData?.error?.code ?? response.status, errorData?.error?.message ?? response.statusText ?? 'Unknown error')
+    throw new AIError(errorData?.error?.code ?? response.status, extractOpenAiErrorMessage(errorData, response.statusText))
   }
 
   const data = await response.json()
@@ -793,6 +857,46 @@ export const fetchOpenCodeGoModels = async (apiKey?: string) => {
   }
 }
 
+export const fetchLocalModels = async (localUrl: string, apiKey?: string) => {
+  const endpoint = resolveLocalModelsUrl(localUrl)
+  if (!endpoint) {
+    throw new Error('Local URL is required')
+  }
+
+  const headers: Record<string, string> = {}
+  const trimmedKey = apiKey?.trim()
+  if (trimmedKey) {
+    headers['Authorization'] = `Bearer ${trimmedKey}`
+  }
+
+  const response = await fetch(endpoint, { headers })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new AIError(errorData?.error?.code ?? response.status, errorData?.error?.message ?? response.statusText ?? 'Unknown error')
+  }
+
+  const payload = await response.json()
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.data)) {
+    throw new Error('Invalid OpenAI models response')
+  }
+
+  const seen = new Set<string>()
+  const choices: { label: string; value: string }[] = []
+  for (const entry of payload.data) {
+    if (!entry || typeof entry !== 'object' || typeof entry.id !== 'string') {
+      continue
+    }
+    const id = entry.id.trim()
+    if (!id || seen.has(id)) {
+      continue
+    }
+    seen.add(id)
+    choices.push({ label: id, value: id })
+  }
+
+  return choices.sort((a, b) => a.label.localeCompare(b.label))
+}
+
 // --- Provider-specific summarization ---
 
 export const callOpenRouterSummarization = async (messages: any[], apiKey: string, model: string, signal?: AbortSignal, openRouterSpeed?: OpenRouterSpeed) => {
@@ -857,26 +961,69 @@ export const callOpenRouterSummarization = async (messages: any[], apiKey: strin
   return data.choices[0].message.content
 }
 
+const isLocalSchemaError = (errorData: unknown): boolean => {
+  const text = (JSON.stringify(errorData) ?? '').toLowerCase()
+
+  return text.includes('response_format') || text.includes('json_schema') || text.includes('schema')
+}
+
+const isLocalReasoningError = (errorData: unknown): boolean => {
+  const text = (JSON.stringify(errorData) ?? '').toLowerCase()
+
+  return text.includes('reasoning_effort') || text.includes('reasoning')
+}
+
+const isLocalParameterRejectionStatus = (status: number): boolean => {
+  return status === 400 || status === 422
+}
+
+const rememberLocalModelWithoutJson = (model?: string) => {
+  if (!model) return
+  modelsWithoutJsonSupport.value.add(model)
+  sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
+}
+
+const rememberLocalModelWithoutReasoning = (model?: string) => {
+  if (!model) return
+  modelsWithoutReasoningSupport.value.add(model)
+  sessionStorage.setItem('modelsWithoutReasoningSupport', JSON.stringify([...modelsWithoutReasoningSupport.value]))
+}
+
 export const callLocalSummarization = async (messages: any[], opts: { model?: string; maxTokens?: number; apiKey?: string; localUrl: string; reasoningEffort?: string; signal?: AbortSignal }) => {
   const { model, maxTokens = 16384, apiKey, localUrl, reasoningEffort, signal } = opts
 
-  let endpoint = localUrl.replace(/\/$/, '')
-  if (!endpoint.endsWith('/chat/completions')) {
-    endpoint = `${endpoint}/chat/completions`
+  const endpoint = resolveLocalChatCompletionsUrl(localUrl)
+  if (!endpoint) {
+    throw new Error('Local URL is required')
   }
+  const trimmedModel = model?.trim() || undefined
+  const effectiveReasoning = reasoningEffort && reasoningEffort !== 'default' ? reasoningEffort : undefined
+  let useReasoning = Boolean(effectiveReasoning) && !(trimmedModel && modelsWithoutReasoningSupport.value.has(trimmedModel))
 
-  const requestBody = buildOpenAiCompatibleRequestBody({
-    messages,
-    maxTokens,
-    model,
-    reasoningEffort
-  })
+  const send = () =>
+    sendOpenAiCompatibleRequest(endpoint, {
+      requestBody: buildLocalChatRequestBody({
+        messages,
+        maxTokens,
+        model: trimmedModel,
+        reasoningEffort: useReasoning ? effectiveReasoning : undefined
+      }),
+      apiKey,
+      signal
+    })
 
-  const response = await sendOpenAiCompatibleRequest(endpoint, {
-    requestBody,
-    apiKey,
-    signal
-  })
+  let response = await send()
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    if (isLocalParameterRejectionStatus(response.status) && useReasoning && isLocalReasoningError(errorData)) {
+      console.warn(`Model ${trimmedModel || 'local'} rejected reasoning settings, remembering and retrying without reasoning...`)
+      rememberLocalModelWithoutReasoning(trimmedModel)
+      useReasoning = false
+      response = await send()
+    } else {
+      throw new AIError(errorData?.error?.code ?? response.status, extractOpenAiErrorMessage(errorData, response.statusText))
+    }
+  }
 
   return await parseOpenAiCompatibleTextResponse(response)
 }
@@ -899,63 +1046,66 @@ export const callLocal = async (
 ) => {
   const { model, maxTokens = 16384, apiKey, localUrl, modeIsGame, reasoningEffort, includeAnimReason = false, includeReasoning = false, signal } = opts
 
-  let endpoint = localUrl.replace(/\/$/, '')
-  if (!endpoint.endsWith('/chat/completions')) {
-    endpoint = `${endpoint}/chat/completions`
+  const endpoint = resolveLocalChatCompletionsUrl(localUrl)
+  if (!endpoint) {
+    throw new Error('Local URL is required')
+  }
+  const trimmedModel = model?.trim() || undefined
+  const effectiveReasoning = reasoningEffort && reasoningEffort !== 'default' ? reasoningEffort : undefined
+
+  let useSchema = !(trimmedModel && modelsWithoutJsonSupport.value.has(trimmedModel))
+  let useReasoning = Boolean(effectiveReasoning) && !(trimmedModel && modelsWithoutReasoningSupport.value.has(trimmedModel))
+
+  if (!useSchema && trimmedModel) {
+    logDebug(`Model ${trimmedModel} known to not support json_schema, using text fallback...`)
   }
 
-  const callWithoutJsonFormat = async () => {
-    const requestBody = buildOpenAiCompatibleRequestBody({
-      messages,
-      maxTokens,
-      model,
-      reasoningEffort
-    })
-
-    const response = await sendOpenAiCompatibleRequest(endpoint, {
-      requestBody,
+  const send = () =>
+    sendOpenAiCompatibleRequest(endpoint, {
+      requestBody: buildLocalChatRequestBody({
+        messages,
+        maxTokens,
+        model: trimmedModel,
+        modeIsGame,
+        reasoningEffort: useReasoning ? effectiveReasoning : undefined,
+        includeJsonSchema: useSchema,
+        includeAnimReason
+      }),
       apiKey,
       signal
     })
 
-    return await parseOpenAiCompatibleTextResponse(response, includeReasoning)
+  let response = await send()
+
+  for (let attempt = 0; attempt < 2 && !response.ok && isLocalParameterRejectionStatus(response.status); attempt += 1) {
+    const errorData = await response.json().catch(() => ({}))
+    console.error('Local API Error Details:', errorData)
+
+    const schemaRejected = useSchema && isLocalSchemaError(errorData)
+    const reasoningRejected = useReasoning && isLocalReasoningError(errorData)
+    if (!schemaRejected && !reasoningRejected) {
+      throw new AIError(errorData?.error?.code ?? response.status, extractOpenAiErrorMessage(errorData, response.statusText))
+    }
+
+    if (schemaRejected) {
+      console.warn(`Model ${trimmedModel || 'local'} does not support json_schema response format, remembering and retrying without it...`)
+      rememberLocalModelWithoutJson(trimmedModel)
+      useSchema = false
+    }
+    if (reasoningRejected) {
+      console.warn(`Model ${trimmedModel || 'local'} rejected reasoning settings, remembering and retrying without reasoning...`)
+      rememberLocalModelWithoutReasoning(trimmedModel)
+      useReasoning = false
+    }
+
+    response = await send()
   }
-
-  if (model && modelsWithoutJsonSupport.value.has(model)) {
-    logDebug(`Model ${model} known to not support json_schema, using text fallback...`)
-    return callWithoutJsonFormat()
-  }
-
-  const requestBody = buildOpenAiCompatibleRequestBody({
-    messages,
-    maxTokens,
-    model,
-    modeIsGame,
-    reasoningEffort,
-    includeJsonSchema: true,
-    includeAnimReason
-  })
-
-  const response = await sendOpenAiCompatibleRequest(endpoint, {
-    requestBody,
-    apiKey,
-    signal
-  })
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     console.error('Local API Error Details:', errorData)
 
-    if (response.status === 400 && (JSON.stringify(errorData).includes('response_format') || JSON.stringify(errorData).includes('json_schema') || JSON.stringify(errorData).includes('schema'))) {
-      console.warn(`Model ${model || 'local'} does not support json_schema response format, remembering and retrying without it...`)
-      if (model) {
-        modelsWithoutJsonSupport.value.add(model)
-        sessionStorage.setItem('modelsWithoutJsonSupport', JSON.stringify([...modelsWithoutJsonSupport.value]))
-      }
-      return callWithoutJsonFormat()
-    }
-
-    throw new AIError(errorData?.error?.code ?? response.status, errorData?.error?.message ?? response.statusText ?? 'Unknown error')
+    throw new AIError(errorData?.error?.code ?? response.status, extractOpenAiErrorMessage(errorData, response.statusText))
   }
 
   const data = await response.json()

@@ -538,6 +538,10 @@
             <n-input v-model:value="localUrl" placeholder="http://localhost:5001/v1" />
           </n-form-item>
 
+          <n-form-item label="API Key (Optional)" v-if="apiProvider === 'local'">
+            <n-input v-model:value="localApiKey" type="password" show-password-on="click" placeholder="Enter API Key (optional)" />
+          </n-form-item>
+
           <n-form-item label="API Key" v-if="apiProvider !== 'local'">
             <n-input v-model:value="apiKey" type="password" show-password-on="click" placeholder="Enter API Key" />
           </n-form-item>
@@ -547,6 +551,61 @@
 
           <n-form-item label="Model" v-if="apiProvider !== 'local'">
             <n-select v-model:value="model" :options="modelOptions" />
+          </n-form-item>
+
+          <n-form-item v-if="apiProvider === 'local'">
+            <template #label>
+              Model
+              <n-popover trigger="hover" placement="bottom" style="max-width: 320px">
+                <template #trigger>
+                  <n-icon size="16" style="vertical-align: text-bottom; margin-left: 4px; cursor: help; color: #888">
+                    <Help />
+                  </n-icon>
+                </template>
+                <div>
+                  Queries your endpoint's OpenAI-compatible <code>/models</code> route. You can also type a custom model identifier or leave this blank if your local server already has a model loaded.
+                </div>
+              </n-popover>
+            </template>
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; gap: 8px; width: 100%">
+                <n-select
+                  v-if="localModelOptions.length > 0"
+                  :value="localModel || null"
+                  :options="localModelOptions"
+                  :loading="localModelsLoading"
+                  filterable
+                  tag
+                  clearable
+                  placeholder="Select or enter a model ID"
+                  style="flex: 1"
+                  @update:value="onUpdateLocalModel"
+                />
+                <n-input
+                  v-else
+                  v-model:value="localModel"
+                  clearable
+                  placeholder="Enter custom model ID (optional)"
+                  style="flex: 1"
+                />
+                <n-button
+                  secondary
+                  :loading="localModelsLoading"
+                  title="Refresh models from endpoint"
+                  aria-label="Refresh models from endpoint"
+                  @click="refreshModels('local', localModel || undefined)"
+                >
+                  <template #icon>
+                    <n-icon>
+                      <Renew />
+                    </n-icon>
+                  </template>
+                </n-button>
+              </div>
+              <span v-if="localModelsFetchFailed && localModelOptions.length === 0" style="font-size: 12px; color: #999">
+                Could not fetch models from endpoint. Enter a custom model identifier above or leave blank.
+              </span>
+            </div>
           </n-form-item>
 
           <n-form-item v-if="showAdvancedSettings && reasoningEffortOptions.length > 0">
@@ -1078,6 +1137,10 @@ const guidePage = ref(1)
 const apiProvider = ref<StoryProviderId>('openrouter')
 const apiKey = ref(localStorage.getItem('nikke_api_key') || '')
 const localUrl = ref(localStorage.getItem('nikke_local_url') || 'http://localhost:5001/v1')
+const localApiKey = ref(localStorage.getItem('nikke_local_api_key') || '')
+const localModel = ref(localStorage.getItem('nikke_local_model') || '')
+const localModelsLoading = ref(false)
+const localModelsFetchFailed = ref(false)
 const model = ref('')
 const mode = ref('game')
 const tokenUsage = ref('medium')
@@ -1611,6 +1674,8 @@ const setRandomLoadingMessage = () => {
 
 const modelOptions = computed(() => modelsByProvider.value[apiProvider.value] ?? [])
 
+const localModelOptions = computed(() => modelsByProvider.value.local ?? [])
+
 const providerRequiresApiKey = computed(() => apiProvider.value !== 'local')
 
 const isApiKeyMissing = computed(() => providerRequiresApiKey.value && !apiKey.value.trim())
@@ -1625,11 +1690,27 @@ const isCompactSummaryDisabled = computed(() => {
   return isApiKeyMissing.value || isLoading.value || tokenUsage.value === 'goddess' || summaryJustCompacted.value || storySummary.value.length < COMPACT_MIN_LENGTH || (summarizationSuccessCount.value === 0 && !storySummary.value)
 })
 
+const getApiKeyForProvider = (id: StoryProviderId) => (id === 'local' ? localApiKey.value : apiKey.value)
+
+const getModelForProvider = (id: StoryProviderId) => (id === 'local' ? localModel.value : model.value)
+
+const setModelForProvider = (id: StoryProviderId, value: string) => {
+  if (id === 'local') {
+    localModel.value = value
+  } else {
+    model.value = value
+  }
+}
+
+const onUpdateLocalModel = (val: string | null) => {
+  localModel.value = val ?? ''
+}
+
 const currentRun = (messages: { role: string; content: string }[], task: StoryTask): StoryRun => {
   return {
     messages,
-    apiKey: apiKey.value,
-    model: apiProvider.value === 'local' ? undefined : model.value,
+    apiKey: getApiKeyForProvider(apiProvider.value),
+    model: apiProvider.value === 'local' ? localModel.value.trim() || undefined : model.value,
     modeIsGame: mode.value === 'game',
     reasoningEffort: reasoningEffort.value,
     enableContextCaching: enableContextCaching.value,
@@ -1645,20 +1726,57 @@ const currentRun = (messages: { role: string; content: string }[], task: StoryTa
   }
 }
 
+let localModelsRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
 const refreshModels = async (id: StoryProviderId, current: string | undefined): Promise<void> => {
-  const generation = ++refreshGeneration
-  const listed = await listStoryModels(id, apiKey.value.trim() || undefined)
-  if (generation !== refreshGeneration) {
-    return
-  }
-  if (listed.ok) {
-    modelsByProvider.value = { ...modelsByProvider.value, [id]: listed.choices }
-  }
-  if (apiProvider.value !== id || !listed.ok) {
-    return
+  if (id === 'local') {
+    if (localModelsRefreshTimer) {
+      clearTimeout(localModelsRefreshTimer)
+      localModelsRefreshTimer = null
+    }
+    localModelsLoading.value = true
   }
 
-  model.value = modelAfterRefresh(id, current, listed.choices)
+  const generation = ++refreshGeneration
+  try {
+    const listed = await listStoryModels(id, getApiKeyForProvider(id).trim() || undefined, id === 'local' ? { localUrl: localUrl.value } : undefined)
+    if (generation !== refreshGeneration) {
+      return
+    }
+    if (id === 'local') {
+      localModelsFetchFailed.value = !listed.ok
+      if (!listed.ok) {
+        modelsByProvider.value = { ...modelsByProvider.value, local: [] }
+      }
+    }
+    if (listed.ok) {
+      modelsByProvider.value = { ...modelsByProvider.value, [id]: listed.choices }
+    }
+    if (apiProvider.value !== id || !listed.ok) {
+      return
+    }
+
+    setModelForProvider(id, modelAfterRefresh(id, current, listed.choices))
+  } finally {
+    if (id === 'local' && (generation === refreshGeneration || apiProvider.value !== 'local')) {
+      localModelsLoading.value = false
+    }
+  }
+}
+
+const scheduleLocalModelsRefresh = () => {
+  if (apiProvider.value !== 'local') {
+    return
+  }
+  if (localModelsRefreshTimer) {
+    clearTimeout(localModelsRefreshTimer)
+  }
+  localModelsRefreshTimer = setTimeout(() => {
+    localModelsRefreshTimer = null
+    if (apiProvider.value === 'local') {
+      void refreshModels('local', localModel.value || undefined)
+    }
+  }, 400)
 }
 
 const ensureApiKeyForCurrentProvider = () => {
@@ -2017,7 +2135,7 @@ watch(chatMode, (newVal) => {
 
 watch(apiKey, async (newVal) => {
   localStorage.setItem('nikke_api_key', newVal)
-  if (!refetchesModelsWhenKeyChanges(apiProvider.value)) {
+  if (apiProvider.value === 'local' || !refetchesModelsWhenKeyChanges(apiProvider.value)) {
     return
   }
 
@@ -2026,6 +2144,16 @@ watch(apiKey, async (newVal) => {
 
 watch(localUrl, (newVal) => {
   localStorage.setItem('nikke_local_url', newVal)
+  scheduleLocalModelsRefresh()
+})
+
+watch(localApiKey, (newVal) => {
+  localStorage.setItem('nikke_local_api_key', newVal)
+  scheduleLocalModelsRefresh()
+})
+
+watch(localModel, (newVal) => {
+  localStorage.setItem('nikke_local_model', newVal)
 })
 
 watch(allowWebSearchFallback, (newVal) => {
@@ -2212,7 +2340,7 @@ watch(apiProvider, async (id) => {
   }
 
   reasoningEffort.value = 'default'
-  await refreshModels(id, model.value || undefined)
+  await refreshModels(id, getModelForProvider(id) || undefined)
 })
 
 const checkGuide = () => {
@@ -2269,20 +2397,38 @@ const initializeSettings = async () => {
     const id = parseStoryProviderId(stored.apiProvider)
     if (id) {
       apiProvider.value = id
-      const listed = await listStoryModels(id, apiKey.value.trim() || undefined)
-      if (listed.ok) {
-        modelsByProvider.value = { ...modelsByProvider.value, [id]: listed.choices }
-        const decision = restoredModel(id, stored.model, listed.choices)
-        if (decision.model) model.value = decision.model
-        if (decision.warning) console.warn(decision.warning)
-      } else if (stored.model) {
-        model.value = stored.model
+      const savedProviderModel = id === 'local' ? localModel.value || undefined : stored.model
+      if (id === 'local') {
+        localModelsLoading.value = true
+      }
+      try {
+        const listed = await listStoryModels(id, getApiKeyForProvider(id).trim() || undefined, id === 'local' ? { localUrl: localUrl.value } : undefined)
+        if (id === 'local') {
+          localModelsFetchFailed.value = !listed.ok
+        }
+        if (listed.ok) {
+          modelsByProvider.value = { ...modelsByProvider.value, [id]: listed.choices }
+          const decision = restoredModel(id, savedProviderModel, listed.choices)
+          if (decision.model) setModelForProvider(id, decision.model)
+          if (decision.warning) console.warn(decision.warning)
+        } else {
+          if (id === 'local') {
+            modelsByProvider.value = { ...modelsByProvider.value, local: [] }
+          }
+          if (savedProviderModel) {
+            setModelForProvider(id, savedProviderModel)
+          }
+        }
+      } finally {
+        if (id === 'local') {
+          localModelsLoading.value = false
+        }
       }
     }
   }
 
   if (!modelsByProvider.value[apiProvider.value]) {
-    await refreshModels(apiProvider.value, model.value || undefined)
+    await refreshModels(apiProvider.value, getModelForProvider(apiProvider.value) || undefined)
   }
 
   if (mobileOptimizations.value) {
@@ -2354,6 +2500,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (localModelsRefreshTimer) {
+    clearTimeout(localModelsRefreshTimer)
+    localModelsRefreshTimer = null
+  }
   delete document.body.dataset[STORY_GEN_LOW_POWER_DATASET_KEY]
   market.live2d.HQassets = originalHQAssets.value
   window.removeEventListener('beforeunload', handleBeforeUnload)
@@ -2411,7 +2561,7 @@ const saveSession = () => {
     },
     enableAnimationReplay: enableAnimationReplay.value,
     apiProvider: apiProvider.value,
-    model: model.value,
+    model: getModelForProvider(apiProvider.value),
     playbackMode: playbackMode.value,
     yapEnabled: market.live2d.yapEnabled,
     ttsEnabled: ttsEnabled.value,
@@ -2526,14 +2676,22 @@ const handleFileUpload = (event: Event) => {
           const sessionId = parseStoryProviderId(String(data.settings.apiProvider ?? ''))
           let choices: ModelChoice[] = []
           if (sessionId) {
-            const listed = await listStoryModels(sessionId, apiKey.value.trim() || undefined)
+            const listed = await listStoryModels(sessionId, getApiKeyForProvider(sessionId).trim() || undefined, sessionId === 'local' ? { localUrl: localUrl.value } : undefined)
+            if (sessionId === 'local') {
+              localModelsFetchFailed.value = !listed.ok
+            }
             if (listed.ok) {
               choices = listed.choices
               modelsByProvider.value = { ...modelsByProvider.value, [sessionId]: listed.choices }
-            } else if (modelsByProvider.value[sessionId]) {
-              choices = modelsByProvider.value[sessionId] ?? []
-            } else if (typeof data.settings.model === 'string' && data.settings.model) {
-              choices = [{ label: data.settings.model, value: data.settings.model }]
+            } else {
+              if (sessionId === 'local') {
+                modelsByProvider.value = { ...modelsByProvider.value, local: [] }
+              } else if (modelsByProvider.value[sessionId]) {
+                choices = modelsByProvider.value[sessionId] ?? []
+              }
+              if (choices.length === 0 && typeof data.settings.model === 'string' && data.settings.model) {
+                choices = [{ label: data.settings.model, value: data.settings.model }]
+              }
             }
           }
 
@@ -2556,7 +2714,7 @@ const handleFileUpload = (event: Event) => {
             autoCompactSummaries,
             autoCompactFrequency,
             apiProvider,
-            model
+            model: sessionId === 'local' ? localModel : model
           })
           if (modelWarning) {
             chatHistory.value.push({ role: 'system', content: modelWarning })

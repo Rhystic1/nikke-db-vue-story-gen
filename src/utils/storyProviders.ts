@@ -1,6 +1,6 @@
 import type { OpenRouterSpeed } from '@/utils/providerConfigUtils'
 import { buildOpenCodeGoHeaders } from '@/utils/providerConfigUtils'
-import { buildOpenCodeGoChatRequestBody, callLocal, callLocalSummarization, callOpenCodeGo, callOpenCodeGoSummarization, callOpenRouter, callOpenRouterSummarization, callZai, fetchOpenCodeGoModels, fetchOpenRouterModels, fetchPollinationsModels } from '@/utils/llmUtils'
+import { buildOpenCodeGoChatRequestBody, callLocal, callLocalSummarization, callOpenCodeGo, callOpenCodeGoSummarization, callOpenRouter, callOpenRouterSummarization, callZai, fetchLocalModels, fetchOpenCodeGoModels, fetchOpenRouterModels, fetchPollinationsModels } from '@/utils/llmUtils'
 import { GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL_OPTIONS, callGemini, callGeminiSummarization, fetchGeminiModels } from '@/utils/geminiUtils'
 import { callPollinations, callPollinationsSummarization } from '@/utils/pollinationsUtils'
 import { takeOpenAiMessageContent } from '@/utils/aiReasoningUtils'
@@ -47,6 +47,10 @@ export type RestoredModel = {
 
 export type CharacterSearchMode = 'native' | 'wiki' | 'none'
 
+export type ListModelsOptions = {
+  localUrl?: string
+}
+
 type ReasoningFamily = 'chat' | 'gemini'
 type EmptyCatalog = 'quiet' | 'warn'
 type FallbackKind = 'first' | 'gemini-default' | 'none'
@@ -59,9 +63,10 @@ type ProviderPolicy = {
   refetchOnKeyChange: boolean
   emptyCatalog: EmptyCatalog
   fallback: FallbackKind
+  allowCustomModel: boolean
   search: SearchKind
   wikiHelp: WikiHelp
-  listModels: (apiKey: string | undefined) => Promise<ModelListResult>
+  listModels: (apiKey: string | undefined, opts?: ListModelsOptions) => Promise<ModelListResult>
   run: (task: StoryTask, req: StoryRun) => Promise<string>
 }
 
@@ -89,6 +94,7 @@ const geminiRow = {
   refetchOnKeyChange: true,
   emptyCatalog: 'warn',
   fallback: 'gemini-default',
+  allowCustomModel: false,
   search: 'always-native',
   wikiHelp: 'same-as-wiki-mode',
   listModels: listGeminiModels,
@@ -102,6 +108,7 @@ const openCodeGoRow = {
   refetchOnKeyChange: true,
   emptyCatalog: 'quiet',
   fallback: 'first',
+  allowCustomModel: false,
   search: 'always-wiki',
   wikiHelp: 'same-as-wiki-mode',
   listModels: listGoModels,
@@ -115,6 +122,7 @@ const openCodeRow = {
   refetchOnKeyChange: true,
   emptyCatalog: 'quiet',
   fallback: 'first',
+  allowCustomModel: false,
   search: 'always-wiki',
   wikiHelp: 'same-as-wiki-mode',
   listModels: listPaidModels,
@@ -128,6 +136,7 @@ const openRouterRow = {
   refetchOnKeyChange: false,
   emptyCatalog: 'warn',
   fallback: 'first',
+  allowCustomModel: false,
   search: 'openrouter',
   wikiHelp: 'same-as-wiki-mode',
   listModels: listOpenRouterModels,
@@ -141,6 +150,7 @@ const pollinationsRow = {
   refetchOnKeyChange: true,
   emptyCatalog: 'quiet',
   fallback: 'first',
+  allowCustomModel: false,
   search: 'pollinations',
   wikiHelp: 'never',
   listModels: listPollinationsModels,
@@ -154,6 +164,7 @@ const zaiRow = {
   refetchOnKeyChange: false,
   emptyCatalog: 'quiet',
   fallback: 'first',
+  allowCustomModel: false,
   search: 'always-wiki',
   wikiHelp: 'same-as-wiki-mode',
   listModels: listZaiModels,
@@ -164,9 +175,10 @@ const localRow = {
   id: 'local' as const,
   label: 'Local (OpenAI-compatible API)',
   reasoning: 'chat',
-  refetchOnKeyChange: false,
-  emptyCatalog: 'warn',
-  fallback: 'none',
+  refetchOnKeyChange: true,
+  emptyCatalog: 'quiet',
+  fallback: 'first',
+  allowCustomModel: true,
   search: 'none',
   wikiHelp: 'same-as-wiki-mode',
   listModels: listLocalModels,
@@ -223,7 +235,7 @@ export const storyProviderOptions: { label: string; value: StoryProviderId }[] =
   value: provider.id
 }))
 
-function providerRow(id: StoryProviderId): (typeof storyProviderList)[number] {
+function providerRow(id: StoryProviderId): ProviderPolicy {
   const row = storyProviderList.find((provider) => provider.id === id)
   if (!row) {
     throw new Error(`Unknown story provider: ${id}`)
@@ -238,8 +250,8 @@ export function parseStoryProviderId(raw: string): StoryProviderId | undefined {
   return row?.id
 }
 
-export function listStoryModels(provider: StoryProviderId, apiKey: string | undefined): Promise<ModelListResult> {
-  return providerRow(provider).listModels(apiKey)
+export function listStoryModels(provider: StoryProviderId, apiKey: string | undefined, opts?: ListModelsOptions): Promise<ModelListResult> {
+  return providerRow(provider).listModels(apiKey, opts)
 }
 
 export function runStoryProvider(provider: StoryProviderId, task: StoryTask, req: StoryRun): Promise<string> {
@@ -302,13 +314,13 @@ export function getReasoningEffortOptions(provider: StoryProviderId): { label: s
 }
 
 export function restoredModel(provider: StoryProviderId, savedModel: string | undefined, listed: readonly ModelChoice[]): RestoredModel {
-  const saved = savedModel ? savedModel : undefined
-  if (saved && listed.some((choice) => choice.value === saved)) {
+  const row = providerRow(provider)
+  const saved = savedModel?.trim() ? savedModel.trim() : undefined
+  if (saved && (row.allowCustomModel || listed.some((choice) => choice.value === saved))) {
 
     return { model: saved }
   }
 
-  const row = providerRow(provider)
   if (listed.length === 0 && row.emptyCatalog === 'quiet') {
 
     return {}
@@ -336,9 +348,11 @@ export function restoredModel(provider: StoryProviderId, savedModel: string | un
 }
 
 export function modelAfterRefresh(provider: StoryProviderId, current: string | undefined, listed: readonly ModelChoice[]): string {
-  if (current && listed.some((choice) => choice.value === current)) {
+  const row = providerRow(provider)
+  const trimmedCurrent = current?.trim() ? current.trim() : undefined
+  if (trimmedCurrent && (row.allowCustomModel || listed.some((choice) => choice.value === trimmedCurrent))) {
 
-    return current
+    return trimmedCurrent
   }
 
   return fallbackModel(provider, listed) ?? ''
@@ -764,22 +778,36 @@ async function runPollinations(task: StoryTask, req: StoryRun): Promise<string> 
   })
 }
 
-async function listLocalModels(): Promise<ModelListResult> {
-  return { ok: true, choices: [] }
+async function listLocalModels(apiKey: string | undefined, opts?: ListModelsOptions): Promise<ModelListResult> {
+  if (!opts?.localUrl?.trim()) {
+
+    return { ok: false }
+  }
+
+  try {
+    const choices = await fetchLocalModels(opts.localUrl, apiKey)
+
+    return { ok: true, choices }
+  } catch {
+
+    return { ok: false }
+  }
 }
 
 async function runLocal(task: StoryTask, req: StoryRun): Promise<string> {
   if (task === 'native') {
     throw new Error('Native search is not available for this provider')
   }
-  if (!req.localUrl) {
+  const localUrl = req.localUrl?.trim()
+  if (!localUrl) {
     throw new Error('Local URL is required')
   }
   if (task === 'summarize' || task === 'compact') {
 
     return callLocalSummarization(req.messages, {
+      model: req.model,
       apiKey: req.apiKey,
-      localUrl: req.localUrl,
+      localUrl,
       signal: req.signal,
       reasoningEffort: req.reasoningEffort
     })
@@ -788,7 +816,7 @@ async function runLocal(task: StoryTask, req: StoryRun): Promise<string> {
   return callLocal(req.messages, {
     model: req.model,
     apiKey: req.apiKey,
-    localUrl: req.localUrl,
+    localUrl,
     modeIsGame: req.modeIsGame,
     reasoningEffort: req.reasoningEffort,
     includeAnimReason: req.includeAnimReason,

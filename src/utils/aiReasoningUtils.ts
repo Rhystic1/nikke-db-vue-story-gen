@@ -130,7 +130,14 @@ export function takeOpenAiMessageContent(data: any, includeReasoning = false): s
   captureReasoningFromOpenAiData(data, includeReasoning)
   logPromptCacheUsage(data)
 
-  return data?.choices?.[0]?.message?.content
+  const content = data?.choices?.[0]?.message?.content
+  if (Array.isArray(content)) {
+    return content
+      .map((part: any) => (part?.type === 'text' && typeof part.text === 'string' ? part.text : ''))
+      .join('')
+  }
+
+  return content
 }
 
 export function extractAnthropicTextAndReasoning(data: any): { content: string; reasoning?: string } {
