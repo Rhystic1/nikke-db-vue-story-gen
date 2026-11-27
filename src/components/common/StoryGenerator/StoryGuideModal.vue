@@ -5,10 +5,12 @@
         <h3>🆕 What's New?</h3>
         <div class="guide-section">
           <ul>
-            <li>Updated internal database</li>
-            <li>Optimized battery and power usage</li>
-            <li>Fixes for various providers</li>
-            <li>More backend improvements</li>
+            <li>Improved Local/Custom API provider</li>
+            <li>Added Z.AI to the list of providers</li>
+            <li>Significant caching improvements</li>
+            <li>Updated new and existing character rosters</li>
+            <li>Ability to start sessions from existing Advise sessions</li>
+            <li>Further backend and front-end improvements</li>
           </ul>
         </div>
       </div>
@@ -20,7 +22,7 @@
         <div class="guide-section">
           <h4>🔑 API Setup</h4>
           <ul>
-            <li><strong>Providers:</strong> Supports <strong>Gemini</strong>, <strong>OpenCode Go</strong>, <strong>OpenCode</strong>, <strong>OpenRouter</strong>, <strong>Pollinations</strong>, and <strong>Local</strong> (OpenAI-compatible).</li>
+            <li><strong>Providers:</strong> Supports <strong>Gemini</strong>, <strong>OpenCode Go</strong>, <strong>OpenCode</strong>, <strong>OpenRouter</strong>, <strong>Pollinations</strong>, <strong>Z.AI</strong>, and <strong>Custom/Local</strong> (OpenAI-compatible API).</li>
             <li><strong>Privacy:</strong> Your API keys are stored <strong>locally</strong> in your browser and never sent to Nikke-DB.</li>
             <li><strong>Cost:</strong> Be mindful of your provider's usage. You are solely responsible for all costs.</li>
           </ul>
@@ -74,7 +76,7 @@
             <li><strong>Nikke-DB Knowledge:</strong> Uses built-in character profiles for better accuracy and lower costs.</li>
             <li><strong>AI Memory:</strong> The AI can track <strong>Character Progression</strong>, updating personalities and relationships as the story develops.</li>
             <li><strong>Web Search Fallback:</strong> If the AI doesn't know a character or event, it can search the web (supported by some models) or fetch from the Nikke Wiki directly.</li>
-            <li><strong>Local Models:</strong> Connect to your own local LLM server (like LM Studio or Ollama) via the <strong>Local</strong> provider.</li>
+            <li><strong>Custom/Local Models:</strong> Connect to your own local or custom LLM server (like LM Studio or Ollama) via the <strong>Custom/Local (OpenAI-compatible API)</strong> provider.</li>
           </ul>
         </div>
       </div>
